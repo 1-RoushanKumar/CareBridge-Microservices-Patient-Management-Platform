@@ -1,12 +1,14 @@
 package com.pm.patientservice.exception;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-
-import java.util.HashMap;
-import java.util.Map;
 
 // Marks this class as a global exception handler for the entire application.
 // It ensures that the methods inside this class handle exceptions globally across all controllers.
@@ -32,6 +34,26 @@ public class GlobalExceptionHandler {
 
         // Returns an HTTP 400 BAD REQUEST response.
         // The response body contains the `errors` map with field names and error messages.
+        return ResponseEntity.badRequest().body(errors);
+    }
+
+    // Logger instance for logging warning messages
+    private static final Logger log = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(EmailAlreadyExistsException.class) // Handles exceptions of type EmailAlreadyExistsException
+    public ResponseEntity<Map<String, String>> handleEmailAlreadyExistsException(
+            EmailAlreadyExistsException ex) {
+
+        // Logs a warning message when this exception occurs
+        log.warn("Email address already exists {} ", ex.getMessage());
+
+        // Creates a map to store the error response
+        Map<String, String> errors = new HashMap<>();
+
+        // Adds an error message to the response map
+        errors.put("message", "Email address already exists");
+
+        // Returns an HTTP 400 Bad Request response with the error message as the body
         return ResponseEntity.badRequest().body(errors);
     }
 }
