@@ -56,5 +56,23 @@ public class GlobalExceptionHandler {
         // Returns an HTTP 400 Bad Request response with the error message as the body
         return ResponseEntity.badRequest().body(errors);
     }
+
+    // Exception handler for PatientNotFoundException
+    @ExceptionHandler(PatientNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handlePatientNotFoundException(
+            PatientNotFoundException ex) {
+
+        // Logs a warning message when a patient is not found
+        log.warn("Patient not found {}", ex.getMessage());
+
+        // Creates a map to store the error response
+        Map<String, String> errors = new HashMap<>();
+
+        // Adds an error message to the response map
+        errors.put("message", "Patient not found");
+
+        // Returns an HTTP 400 Bad Request response with the error message as the response body
+        return ResponseEntity.badRequest().body(errors);
+    }
 }
 
