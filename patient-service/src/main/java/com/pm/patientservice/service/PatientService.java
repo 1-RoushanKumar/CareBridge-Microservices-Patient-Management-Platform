@@ -31,6 +31,7 @@ public class PatientService {
     public List<PatientResponseDTO> getPatients() {
         List<Patient> patients = patientRepository.findAll();
 
+        //instead of returning the patients directly, we map them ot DTOs for easy conversions to JSON
         return patients
                 .stream()
                 .map(patient -> PatientMapper.toDTO(patient))
