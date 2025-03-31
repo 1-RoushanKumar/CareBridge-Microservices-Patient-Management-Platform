@@ -1,0 +1,37 @@
+# Our API gateway will run on port 4004
+server:
+  port: 4004
+
+spring:
+  cloud:
+    gateway:
+      routes: # Under the routes, we will add all the rules that specify how to route to the Patient Service microservice.
+
+        ## Rest Client -> http://localhost:4004/api/patients
+        ## API Gateway -> http://localhost:4004/patients
+        ## Patient Service -> /patients -> Patients Array
+        - id: api-gateway-patient-route
+          uri: http://patient-service:4000
+          predicates:
+            - Path=/api/patients/**
+          filters:
+            - StripPrefix=1
+
+          ## Example: Let's say we have a front-end client that is making a request to get all the patients.
+          ## Rest Client -> http://localhost:4004/api/patients
+          ## When the client makes a request to this URL, the first thing that happens is that the request lands in our API gateway at address localhost:4004.
+          ## The API gateway will then look at the rules defined in the routes section.
+          ## Next, the API Gateway will rewrite the request so that it can call the internal address of the patient service in a way that the patient service microservice expects.
+          ## The API Gateway will take this request and rewrite it to look like this:
+          ## API Gateway -> http://patient-service:4000/patients
+          ## At this point, the request gets sent to the patient service, which is our Spring Boot app, and then the controller will handle the patient route and return the patients array.
+          ## Patient Service -> /patients -> Patients Array
+
+        ##Rest Client -> http://localhost:4004/api-docs/patients
+        ##Api Gateway -> http://patient-service:4000/v3/api-docs
+        - id: api-docs-patient-route
+          uri: http://patient-service:4000
+          predicates:
+            - Path=/api-docs/patients
+          filters:
+            - RewritePath=/api-docs/patients,/v3/api-docs
