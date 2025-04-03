@@ -7,6 +7,16 @@ spring:
     gateway:
       routes: # Under the routes, we will add all the rules that specify how to route to the Patient Service microservice.
 
+        ## Rest Client -> http://localhost:4004/auth/login
+        ## Api Gateway -> http://auth-service:4005/login
+        - id: auth-service-route
+          uri: http://auth-service:4005
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+
         ## Rest Client -> http://localhost:4004/api/patients
         ## API Gateway -> http://localhost:4004/patients
         ## Patient Service -> /patients -> Patients Array
