@@ -2,6 +2,7 @@ package com.pm.authservice.service;
 
 import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.util.JwtUtil;
+import io.jsonwebtoken.JwtException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -27,5 +28,19 @@ public class AuthService {
                 .map(u -> jwtUtil.generateToken(u.getEmail(), u.getRole()));
 
         return token;
+    }
+
+    /**
+     * Validates the JWT token by delegating to JwtUtil.
+     * @param token The JWT token to validate.
+     * @return true if the token is valid, false otherwise.
+     */
+    public boolean validateToken(String token) {
+        try {
+            jwtUtil.validateToken(token); // Calls JwtUtil to validate the token
+            return true; // Token is valid
+        } catch (JwtException e) {
+            return false; // Token is invalid
+        }
     }
 }
