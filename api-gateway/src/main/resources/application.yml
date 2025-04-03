@@ -26,6 +26,7 @@ spring:
             - Path=/api/patients/**
           filters:
             - StripPrefix=1
+            - JwtValidation
 
           ## Example: Let's say we have a front-end client that is making a request to get all the patients.
           ## Rest Client -> http://localhost:4004/api/patients
@@ -37,6 +38,9 @@ spring:
           ## At this point, the request gets sent to the patient service, which is our Spring Boot app, and then the controller will handle the patient route and return the patients array.
           ## Patient Service -> /patients -> Patients Array
 
+
+        ##Below endpoints are generally for swagger open ui
+        ##This is for patients service
         ##Rest Client -> http://localhost:4004/api-docs/patients
         ##Api Gateway -> http://patient-service:4000/v3/api-docs
         - id: api-docs-patient-route
@@ -45,3 +49,12 @@ spring:
             - Path=/api-docs/patients
           filters:
             - RewritePath=/api-docs/patients,/v3/api-docs
+
+
+        ##This is for auth service
+        - id: api-docs-auth-route
+          uri: http://auth-service:4005
+          predicates:
+            - Path=/api-docs/auth
+          filters:
+            - RewritePath=/api-docs/auth,/v3/api-docs
