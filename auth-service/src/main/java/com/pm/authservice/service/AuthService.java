@@ -2,6 +2,7 @@ package com.pm.authservice.service;
 
 import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
+import com.pm.authservice.exceptions.UserAlreadyExistsException;
 import com.pm.authservice.model.User;
 import com.pm.authservice.util.JwtUtil;
 import io.jsonwebtoken.JwtException;
@@ -44,16 +45,16 @@ public class AuthService {
     public void registerNewUser(RegisterRequestDTO registerRequestDTO) {
         // Check if user with this email already exists
         if (userService.findByEmail(registerRequestDTO.getEmail()).isPresent()) {
-            // You should throw a specific exception here, e.g., UserAlreadyExistsException
-            // For simplicity, throwing a generic RuntimeException for now.
-            throw new RuntimeException("User with email " + registerRequestDTO.getEmail() + " already exists.");
+            throw new UserAlreadyExistsException("User with email " + registerRequestDTO.getEmail() + " already exists.");
         }
 
         User newUser = new User();
         newUser.setEmail(registerRequestDTO.getEmail());
-        newUser.setPassword(passwordEncoder.encode(registerRequestDTO.getPassword())); // Encode password
-        newUser.setRole(registerRequestDTO.getRole() != null ? registerRequestDTO.getRole() : "USER"); // Default role
+        newUser.setPassword(passwordEncoder.encode(registerRequestDTO.getPassword()));
+        // Default role to "USER" if not provided or null
+        newUser.setRole(registerRequestDTO.getRole() != null && !registerRequestDTO.getRole().isBlank()
+                ? registerRequestDTO.getRole().toUpperCase() : "USER"); // Ensure role is uppercase for consistency
 
-        userService.saveUser(newUser); // Save user via UserService
+        userService.saveUser(newUser);
     }
 }
