@@ -1,40 +1,19 @@
-//This is called proto file which is used to describe the structure of the gRPC service
-//as well as the messages that will be exchanged between the client and server(ie request and any responses that our service i going to return.)
+syntax = "proto3";
 
-
-syntax = "proto3";  // Specifies the version of Protocol Buffers being used
-
-// This is going to split our service request and response into different files
-// Option to generate multiple Java files instead of a single combined file
 option java_multiple_files = true;
 
-// Defines the Java package where the generated classes will be placed
 option java_package = "billing";
 
-// Define the BillingService gRPC service
 service BillingService {
-  // Define an RPC method called CreateBillingAccount
-  // - It takes a BillingRequest as input
-  // - It returns a BillingResponse as output
   rpc CreateBillingAccount(BillingRequest) returns (BillingResponse);
 }
-
-// Define the request message for creating a billing account
 message BillingRequest {
-  //The number of this fields is actually use in grpc and protobuf code to help with the serialization and deserialization of the messages
-  string patientId = 1; // Unique identifier for the patient
-  string name = 2;       // Patient's full name
-  string email = 3;      // Patient's email address
+  string patientId = 1;
+  string name = 2;
+  string email = 3;
 }
 
-// Define the response message for the billing account creation process
 message BillingResponse {
-  string accountId = 1; // Unique identifier for the billing account
-  string status = 2;    // Status of the billing account creation (e.g., "SUCCESS", "FAILED")
+  string accountId = 1;
+  string status = 2;
 }
-
-/**
-This is a gRPC service that exposes an RPC (Remote Procedure Call) method called CreateBillingAccount.
-Other microservices (such as a Patient Service) can call this method to request the creation of a billing account.
-The method receives a BillingRequest message and returns a BillingResponse
- */

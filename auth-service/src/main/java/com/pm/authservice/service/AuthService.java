@@ -29,12 +29,6 @@ public class AuthService {
 
         return token;
     }
-
-    /**
-     * Validates the JWT token by delegating to JwtUtil.
-     * @param token The JWT token to validate.
-     * @return true if the token is valid, false otherwise.
-     */
     public boolean validateToken(String token) {
         try {
             jwtUtil.validateToken(token); // Calls JwtUtil to validate the token

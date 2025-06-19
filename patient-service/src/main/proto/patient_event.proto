@@ -1,34 +1,12 @@
-// Specifies that we are using Protocol Buffers version 3 (proto3),  
-// which provides features like default values, optional fields, and a more compact encoding.
 syntax = "proto3";
 
-// Defines the package name for the protobuf messages.  
-// In Java, this helps with organizing the generated classes to avoid name conflicts.
 package patient.events;
 
-// Ensures that each protobuf message is generated as a separate Java file.  
-// This is useful for better code organization and prevents nested class generation.
 option java_multiple_files = true;
 
-// Defines a message structure for a Patient Event.  
-// This message will be used to encapsulate data related to a patient's event  
-// (e.g., patient creation, update, or deletion).
 message PatientEvent {
-  // Unique identifier for the patient.  
-  // This is typically a UUID or a database-generated ID that helps  
-  // in uniquely identifying the patient in the system.
   string patientId = 1;
-
-  // Full name of the patient.  
-  // This field stores the patient's first and last name as a single string.
   string name = 2;
-
-  // Email address of the patient.  
-  // This can be used for communication or notifications.
   string email = 3;
-
-  // Specifies the type of event related to the patient.  
-  // Example values could be "CREATED", "UPDATED", or "DELETED".  
-  // This helps consumers of the event determine the appropriate action to take.
   string event_type = 4;
 }

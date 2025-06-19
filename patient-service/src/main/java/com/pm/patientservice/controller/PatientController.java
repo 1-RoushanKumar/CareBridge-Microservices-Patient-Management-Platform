@@ -40,13 +40,6 @@ public class PatientController {
         PatientResponseDTO responseDTO = patientService.createPatient(patientRequestDTO);
         return ResponseEntity.ok().body(responseDTO);
     }
-//    Why Use ResponseEntity Instead of Direct List Return?
-//    More Control Over HTTP Responses Allows setting custom status codes (e.g., NO_CONTENT when no data is available).
-//    Consistent API Responses – Ensures uniform response structures across different endpoints.
-//    Setting HTTP Headers – Enables adding custom headers (e.g., security, CORS).
-//    Handling Edge Cases – Can explicitly return NO_CONTENT instead of an empty list.
-//    Better Exception Handling – Helps return meaningful error responses instead of just throwing exceptions.
-
     @PutMapping("/{id}")
     @Operation(summary = "Update a patient")
     public ResponseEntity<PatientResponseDTO> updatePatient(@PathVariable UUID id,

@@ -30,8 +30,6 @@ public class PatientService {
 
     public List<PatientResponseDTO> getPatients() {
         List<Patient> patients = patientRepository.findAll();
-
-        //instead of returning the patients directly, we map them ot DTOs for easy conversions to JSON
         return patients
                 .stream()
                 .map(patient -> PatientMapper.toDTO(patient))
@@ -45,10 +43,8 @@ public class PatientService {
         }
         Patient newPatient = patientRepository.save(PatientMapper.toModel(patientRequestDTO));
 
-        //this added after the grpc client was created
         billingServiceGrpcClient.createBillingAccount(String.valueOf(newPatient.getId()), newPatient.getName(), newPatient.getEmail());
 
-        //this added after the kafka producer was created
         kafkaProducer.sendEvent(newPatient);
 
         return PatientMapper.toDTO(newPatient);
