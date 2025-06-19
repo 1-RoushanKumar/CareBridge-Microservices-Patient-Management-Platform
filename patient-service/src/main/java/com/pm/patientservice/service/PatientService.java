@@ -9,7 +9,11 @@ import com.pm.patientservice.kafka.KafkaProducer;
 import com.pm.patientservice.mapper.PatientMapper;
 import com.pm.patientservice.model.Patient;
 import com.pm.patientservice.repository.PatientRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,7 +23,7 @@ import java.util.UUID;
 public class PatientService {
 
     private final KafkaProducer kafkaProducer;
-    private PatientRepository patientRepository;
+    private final PatientRepository patientRepository;
     private final BillingServiceGrpcClient billingServiceGrpcClient;
 
     public PatientService(PatientRepository patientRepository, BillingServiceGrpcClient billingServiceGrpcClient, KafkaProducer kafkaProducer) {
@@ -28,12 +32,27 @@ public class PatientService {
         this.kafkaProducer = kafkaProducer;
     }
 
-    public List<PatientResponseDTO> getPatients() {
-        List<Patient> patients = patientRepository.findAll();
-        return patients
-                .stream()
-                .map(patient -> PatientMapper.toDTO(patient))
-                .toList();
+    public Page<PatientResponseDTO> getPatients(String name, String email, Pageable pageable) {
+        Specification<Patient> spec = Specification.where(null);
+
+        if (StringUtils.hasText(name)) {
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+        }
+
+        if (StringUtils.hasText(email)) {
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("email")), "%" + email.toLowerCase() + "%"));
+        }
+
+        Page<Patient> patientsPage = patientRepository.findAll(spec, pageable);
+        return patientsPage.map(PatientMapper::toDTO);
+    }
+
+    public PatientResponseDTO getPatientById(UUID id) {
+        Patient patient = patientRepository.findById(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient not found with ID: " + id));
+        return PatientMapper.toDTO(patient);
     }
 
     public PatientResponseDTO createPatient(PatientRequestDTO patientRequestDTO) {
@@ -57,7 +76,7 @@ public class PatientService {
         );
 
         if (patientRepository.existsByEmailAndIdNot(patientRequestDTO.getEmail(), id)) {
-            throw new EmailAlreadyExistsException("A patient with this email already exists" + patientRequestDTO.getEmail());
+            throw new EmailAlreadyExistsException("Another patient with this email already exists: " + patientRequestDTO.getEmail()); // Improved error message
         }
 
         patient.setName(patientRequestDTO.getName());
@@ -71,6 +90,9 @@ public class PatientService {
     }
 
     public void deletePatient(UUID id) {
+        if (!patientRepository.existsById(id)) {
+            throw new PatientNotFoundException("Patient not found with ID: " + id);
+        }
         patientRepository.deleteById(id);
     }
 }

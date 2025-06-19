@@ -7,6 +7,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import patient.events.PatientEvent;
 
+@Service
 public class KafkaProducer {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducer.class);

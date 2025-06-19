@@ -1,0 +1,23 @@
+### GET request to example server
+
+##Get all patients (paginated)
+GET http://localhost:4004/api/patients
+Authorization: Bearer {{token}}
+
+#Get patients, page 0, size 5, sorted by email:
+#GET http://localhost:4004/api/patients?page=0&size=5&sort=email,asc
+#Authorization: Bearer {{token}}
+
+#Search patients by name containing "john":
+#GET http://localhost:4004/api/patients?name=David
+#Authorization: Bearer {{token}}
+
+#Search patients by email containing "example" and paginated:
+#GET http://localhost:4004/api/patients?email=david.wilson@example.com&page=0&size=10
+#Authorization: Bearer {{token}}
+
+#Search patients by name and email (both criteria must match):
+#GET http://localhost:4004/api/patients?name=David Wilson&email=david.wilson@example.com
+#Authorization: Bearer {{token}}
+
+###
