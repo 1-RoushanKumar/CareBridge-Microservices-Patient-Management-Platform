@@ -3,14 +3,17 @@ package com.pm.authservice.controller;
 import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.dto.LoginResponseDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
+import com.pm.authservice.dto.UserResponseDTO;
 import com.pm.authservice.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 public class AuthController {
@@ -55,5 +58,13 @@ public class AuthController {
         return authService.validateToken(authHeader.substring(7))
                 ? ResponseEntity.ok().build()
                 : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get user details by ID (Admin only)") // NEW ENDPOINT
+    @GetMapping("/users/{id}")
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable UUID id) {
+        UserResponseDTO userResponseDTO = authService.getUserDetailsById(id);
+        return ResponseEntity.ok(userResponseDTO);
     }
 }

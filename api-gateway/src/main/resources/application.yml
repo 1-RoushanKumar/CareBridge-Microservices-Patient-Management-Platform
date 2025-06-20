@@ -1,25 +1,55 @@
-# Our API gateway will run on port 4004
+# api-gateway/src/main/resources/application.yml
 server:
   port: 4004
 
 spring:
   cloud:
     gateway:
-      routes: # Under the routes, we will add all the rules that specify how to route to the Patient Service microservice.
+      routes:
+        # --- IMPORTANT: Order matters here! More specific rules should come first. ---
 
-        ## Rest Client -> http://localhost:4004/auth/login
-        ## Api Gateway -> http://auth-service:4005/login
-        - id: auth-service-route
+        # 1. Route for AUTH service's public login endpoint (DO NOT apply JwtValidation)
+        - id: auth-service-login-route
           uri: http://auth-service:4005
           predicates:
-            - Path=/auth/**
+            - Path=/auth/login
+          filters:
+            - StripPrefix=1 # Remove '/auth' prefix before forwarding to Auth Service
+
+        # 2. Route for AUTH service's public register endpoint (DO NOT apply JwtValidation)
+        - id: auth-service-register-route
+          uri: http://auth-service:4005
+          predicates:
+            - Path=/auth/register
+          filters:
+            - StripPrefix=1 # Remove '/auth' prefix
+
+        # 3. Routes for API documentation (generally public, no JwtValidation needed)
+        - id: api-docs-patient-route
+          uri: http://patient-service:4000
+          predicates:
+            - Path=/api-docs/patients
+          filters:
+            - RewritePath=/api-docs/patients,/v3/api-docs
+
+        - id: api-docs-auth-route
+          uri: http://auth-service:4005
+          predicates:
+            - Path=/api-docs/auth
+          filters:
+            - RewritePath=/api-docs/auth,/v3/api-docs
+
+        # 4. General route for AUTH service's PROTECTED endpoints (APPLY JwtValidation)
+        # This must come AFTER login/register routes.
+        - id: auth-service-protected-route # Renamed for clarity from 'auth-service-route'
+          uri: http://auth-service:4005
+          predicates:
+            - Path=/auth/** # This will catch all /auth/* requests not handled by more specific rules above
           filters:
             - StripPrefix=1
+            - JwtValidation # Apply your JWT validation filter here
 
-
-        ## Rest Client -> http://localhost:4004/api/patients
-        ## API Gateway -> http://localhost:4004/patients
-        ## Patient Service -> /patients -> Patients Array
+        # 5. Route for Patient Service endpoints (APPLY JwtValidation)
         - id: api-gateway-patient-route
           uri: http://patient-service:4000
           predicates:
@@ -28,33 +58,16 @@ spring:
             - StripPrefix=1
             - JwtValidation
 
-          ## Example: Let's say we have a front-end client that is making a request to get all the patients.
-          ## Rest Client -> http://localhost:4004/api/patients
-          ## When the client makes a request to this URL, the first thing that happens is that the request lands in our API gateway at address localhost:4004.
-          ## The API gateway will then look at the rules defined in the routes section.
-          ## Next, the API Gateway will rewrite the request so that it can call the internal address of the patient service in a way that the patient service microservice expects.
-          ## The API Gateway will take this request and rewrite it to look like this:
-          ## API Gateway -> http://patient-service:4000/patients
-          ## At this point, the request gets sent to the patient service, which is our Spring Boot app, and then the controller will handle the patient route and return the patients array.
-          ## Patient Service -> /patients -> Patients Array
+auth:
+  service:
+    url: http://auth-service:4005 # Ensure this matches your Auth Service's host and port
 
-
-        ##Below endpoints are generally for swagger open ui
-        ##This is for patients service
-        ##Rest Client -> http://localhost:4004/api-docs/patients
-        ##Api Gateway -> http://patient-service:4000/v3/api-docs
-        - id: api-docs-patient-route
-          uri: http://patient-service:4000
-          predicates:
-            - Path=/api-docs/patients
-          filters:
-            - RewritePath=/api-docs/patients,/v3/api-docs
-
-
-        ##This is for auth service
-        - id: api-docs-auth-route
-          uri: http://auth-service:4005
-          predicates:
-            - Path=/api-docs/auth
-          filters:
-            - RewritePath=/api-docs/auth,/v3/api-docs
+# --- NEW CONFIGURATION FOR SWAGGER UI ---
+springdoc:
+  swagger-ui:
+    enabled: true # Ensure Swagger UI is enabled
+    urls:
+      - name: Auth Service
+        url: /api-docs/auth # This is the path your Gateway exposes for Auth Service docs
+      - name: Patient Service
+        url: /api-docs/patients # This is the path your Gateway exposes for Patient Service docs

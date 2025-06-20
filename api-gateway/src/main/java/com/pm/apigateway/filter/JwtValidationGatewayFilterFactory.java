@@ -1,3 +1,4 @@
+// com.pm.apigateway.filter/JwtValidationGatewayFilterFactory.java
 package com.pm.apigateway.filter;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -7,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 @Component
 public class JwtValidationGatewayFilterFactory extends AbstractGatewayFilterFactory<Object> {
@@ -25,15 +27,32 @@ public class JwtValidationGatewayFilterFactory extends AbstractGatewayFilterFact
 
             if (token == null || !token.startsWith("Bearer ")) {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete(); // Terminates the request.
+                return exchange.getResponse().setComplete();
             }
 
+            // Call auth service to validate the token
             return webClient.get()
-                    .uri("/validate") // Calls the "/validate" endpoint of the auth service.
-                    .header(HttpHeaders.AUTHORIZATION, token) // Passes the token to the auth service.
-                    .retrieve() // Sends the request and expects a response.
-                    .toBodilessEntity() // We only care about the status, not the response body.
-                    .then(chain.filter(exchange)); // If validation is successful, continue the request.
+                    .uri("/validate")
+                    .header(HttpHeaders.AUTHORIZATION, token)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .flatMap(responseEntity -> {
+                        // If auth service returns 2xx, continue the filter chain
+                        if (responseEntity.getStatusCode().is2xxSuccessful()) {
+                            return chain.filter(exchange);
+                        } else {
+                            // If auth service returns non-2xx (e.g., 401, 403), set status and complete
+                            exchange.getResponse().setStatusCode(responseEntity.getStatusCode());
+                            return exchange.getResponse().setComplete();
+                        }
+                    })
+                    .onErrorResume(e -> {
+                        // Handle errors from WebClient (e.g., connection refused, non-2xx status codes)
+                        // Log the error for debugging purposes
+                        System.err.println("Error during JWT validation: " + e.getMessage());
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED); // Or HttpStatus.INTERNAL_SERVER_ERROR
+                        return exchange.getResponse().setComplete();
+                    });
         });
     }
 }

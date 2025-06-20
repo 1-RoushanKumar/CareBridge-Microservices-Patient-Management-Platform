@@ -1,0 +1,6 @@
+### GET request to example server
+
+GET http://localhost:4004/auth/users/90a99d78-fa94-49f6-9bb6-169334a15e7a
+Authorization: Bearer {{token}};
+
+###
