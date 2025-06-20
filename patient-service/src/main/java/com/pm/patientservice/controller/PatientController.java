@@ -47,6 +47,8 @@ public class PatientController {
     }
 
     // Example: Get patient by ID - ADMIN can get any, PATIENT can only get their own
+    // Patient can use this endpoint to see his detail only (but before seeing his detail he first needs to register his
+    // email(if not already register) in auth-service with the same email as his patient email then he/she can see his detail with id).
     @GetMapping("/{id}")
     @Operation(summary = "Get patient by ID")
     @PreAuthorize("hasRole('ADMIN') or (hasRole('PATIENT') and @patientService.isOwner(#id, authentication.name))")
