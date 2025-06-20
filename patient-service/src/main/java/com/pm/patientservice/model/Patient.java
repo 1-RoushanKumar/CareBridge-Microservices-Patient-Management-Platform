@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -33,6 +35,18 @@ public class Patient {
 
     @NotNull
     private LocalDate registeredDate;
+
+    @NotNull
+    @Pattern(regexp = "^\\d{10}$", message = "Contact number must be 10 digits")
+    @Column(unique = true)
+    private String contact; // New field
+
+    @NotNull
+    private String gender; // New field
+
+    @NotNull
+    @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits")
+    private String emergencyContact; // New field
 
     public UUID getId() {
         return id;
@@ -82,4 +96,27 @@ public class Patient {
         this.registeredDate = registeredDate;
     }
 
+    public @NotNull @Pattern(regexp = "^\\d{10}$", message = "Contact number must be 10 digits") String getContact() {
+        return contact;
+    }
+
+    public void setContact(@NotNull @Pattern(regexp = "^\\d{10}$", message = "Contact number must be 10 digits") String contact) {
+        this.contact = contact;
+    }
+
+    public @NotNull String getGender() {
+        return gender;
+    }
+
+    public void setGender(@NotNull String gender) {
+        this.gender = gender;
+    }
+
+    public @NotNull @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits") String getEmergencyContact() {
+        return emergencyContact;
+    }
+
+    public void setEmergencyContact(@NotNull @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits") String emergencyContact) {
+        this.emergencyContact = emergencyContact;
+    }
 }
