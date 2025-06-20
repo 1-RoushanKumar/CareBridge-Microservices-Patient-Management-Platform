@@ -1,4 +1,3 @@
-// auth-service/src/main/java/com/pm/authservice/util/JwtUtil.java
 package com.pm.authservice.util;
 
 import io.jsonwebtoken.Claims;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
+import java.util.List; // <<< ADD THIS IMPORT
 import java.util.function.Function;
 
 @Component
@@ -26,17 +26,30 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${jwt.secret}") String secret) {
         this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        // You might want to add a System.out.println here too,
+        // to confirm the secret is loaded correctly after the base64 decoding.
+        // System.out.println("Auth Service Secret Key (decoded): " + new String(secretKey.getEncoded(), StandardCharsets.UTF_8));
     }
 
     public String generateToken(String email, String role) {
+        // *** CRITICAL CHANGE HERE ***
+        // 1. Prefix the role with "ROLE_"
+        // 2. Wrap the role in a List (even if it's a single role)
+        // 3. Change claim name from "role" to "roles" (plural)
+        String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+
         return Jwts.builder()
                 .subject(email)
-                .claim("role", role)
+                .claim("roles", List.of(prefixedRole)) // Changed to "roles" (plural) and List.of()
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS))
                 .signWith(secretKey)
                 .compact();
     }
+
+    // Rest of your JwtUtil methods (extractAllClaims, extractClaim, etc.)
+    // will work correctly with the "roles" claim now that it's a List.
+    // The JwtAuthFilter's claims.get("roles", List.class) will now correctly extract it.
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()

@@ -1,9 +1,10 @@
 package com.pm.patientservice.exception;
 
-// Custom exception to indicate that a patient was not found
-public class PatientNotFoundException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
-    // Constructor that takes an error message and passes it to the RuntimeException superclass
+@ResponseStatus(HttpStatus.NOT_FOUND) // This will automatically set the HTTP status to 404
+public class PatientNotFoundException extends RuntimeException {
     public PatientNotFoundException(String message) {
         super(message);
     }
