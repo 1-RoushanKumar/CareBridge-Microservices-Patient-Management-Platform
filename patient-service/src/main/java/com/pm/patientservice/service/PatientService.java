@@ -56,14 +56,15 @@ public class PatientService {
     }
 
     public PatientResponseDTO createPatient(PatientRequestDTO patientRequestDTO) {
-
         if (patientRepository.existsByEmail(patientRequestDTO.getEmail())) {
-            throw new EmailAlreadyExistsException("A patient with this email already exists" + patientRequestDTO.getEmail());
+            throw new EmailAlreadyExistsException("A patient with this email already exists: " + patientRequestDTO.getEmail());
         }
-        Patient newPatient = patientRepository.save(PatientMapper.toModel(patientRequestDTO));
+
+        Patient patient = PatientMapper.toModel(patientRequestDTO);
+
+        Patient newPatient = patientRepository.save(patient);
 
         billingServiceGrpcClient.createBillingAccount(String.valueOf(newPatient.getId()), newPatient.getName(), newPatient.getEmail());
-
         kafkaProducer.sendEvent(newPatient);
 
         return PatientMapper.toDTO(newPatient);
@@ -76,9 +77,10 @@ public class PatientService {
         );
 
         if (patientRepository.existsByEmailAndIdNot(patientRequestDTO.getEmail(), id)) {
-            throw new EmailAlreadyExistsException("Another patient with this email already exists: " + patientRequestDTO.getEmail()); // Improved error message
+            throw new EmailAlreadyExistsException("Another patient with this email already exists: " + patientRequestDTO.getEmail());
         }
 
+        // Only update allowed fields
         patient.setName(patientRequestDTO.getName());
         patient.setAddress(patientRequestDTO.getAddress());
         patient.setEmail(patientRequestDTO.getEmail());
@@ -88,6 +90,7 @@ public class PatientService {
 
         return PatientMapper.toDTO(updatedPatient);
     }
+
 
     public void deletePatient(UUID id) {
         if (!patientRepository.existsById(id)) {

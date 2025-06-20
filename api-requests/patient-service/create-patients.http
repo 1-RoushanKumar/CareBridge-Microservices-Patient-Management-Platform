@@ -5,11 +5,10 @@ Content-Type: application/json
 
 
 {
-  "name": "Roushan",
-  "email": "rk@g.com",
+  "name": "Rohan",
+  "email": "rohan@g.com",
   "address": "123 main street22",
-  "dateOfBirth": "1995-09-09",
-  "registeredDate": "2024-11-28"
+  "dateOfBirth": "1995-09-09"
 }
 
 ###
