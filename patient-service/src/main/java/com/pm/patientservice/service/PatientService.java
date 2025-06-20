@@ -73,19 +73,12 @@ public class PatientService {
     public PatientResponseDTO updatePatient(UUID id, PatientRequestDTO patientRequestDTO, Authentication auth) {
         Patient patient = patientRepository.findById(id)
                 .orElseThrow(() -> new PatientNotFoundException("Patient not found with ID: " + id));
-
-        // The @PreAuthorize on the controller method will handle most of this logic.
-        // However, keeping this internal check is not harmful, but potentially redundant
-        // if the @PreAuthorize expression is robust.
-        // If the @PreAuthorize is: @PreAuthorize("hasRole('ADMIN') or (hasRole('PATIENT') and @patientService.isOwner(#id, authentication.name))")
-        // then this internal check might not be strictly necessary, but it acts as a safeguard.
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
 
         boolean isSameUser = patient.getEmail().equals(auth.getName());
 
         if (!isAdmin && !isSameUser) {
-            // This throw will be caught by Spring Security's AccessDeniedHandler
             throw new org.springframework.security.access.AccessDeniedException("You can only update your own profile or you need ADMIN role.");
         }
 
@@ -94,7 +87,6 @@ public class PatientService {
             throw new EmailAlreadyExistsException("Another patient with this email already exists: " + patientRequestDTO.getEmail());
         }
 
-        // Update allowed fields
         patient.setName(patientRequestDTO.getName());
         patient.setAddress(patientRequestDTO.getAddress());
         patient.setEmail(patientRequestDTO.getEmail());
@@ -118,16 +110,7 @@ public class PatientService {
         return PatientMapper.toDTO(patient);
     }
 
-    /**
-     * Helper method to check if the current authenticated user is the owner of the patient resource.
-     * This method is called by Spring Security's @PreAuthorize annotation.
-     *
-     * @param patientId The UUID of the patient resource.
-     * @param currentUserEmail The email of the currently authenticated user (from JWT subject).
-     * @return true if the current user is the owner, false otherwise.
-     */
     public boolean isOwner(UUID patientId, String currentUserEmail) {
-        // Find the patient by ID
         return patientRepository.findById(patientId)
                 .map(patient -> patient.getEmail().equals(currentUserEmail)) // Check if the patient's email matches the current user's email
                 .orElse(false); // If patient not found, current user is not the owner

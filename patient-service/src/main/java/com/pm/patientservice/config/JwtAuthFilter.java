@@ -21,22 +21,19 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.crypto.SecretKey; // Import for SecretKey
+import javax.crypto.SecretKey;
 
-// JwtAuthFilter.java
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    private SecretKey secretKey; // Declare SecretKey
+    private SecretKey secretKey;
 
-    // Initialize the SecretKey once when the bean is created
     @Override
     public void afterPropertiesSet() throws ServletException {
         super.afterPropertiesSet();
-        // Ensure jwtSecret is not null or empty before creating the key
         if (jwtSecret == null || jwtSecret.isEmpty()) {
             throw new IllegalArgumentException("JWT secret must not be null or empty.");
         }
@@ -53,33 +50,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 String token = authHeader.substring(7);
 
-                // Ensure secretKey is initialized
                 if (this.secretKey == null) {
-                    // This should ideally not happen if afterPropertiesSet is called correctly by Spring
-                    // but as a failsafe, re-initialize if somehow null.
                     this.secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
                 }
 
-                // --- CORRECTED FIX START ---
                 Claims claims = Jwts.parser()
-                        .setSigningKey(this.secretKey) // Use the pre-initialized SecretKey
+                        .setSigningKey(this.secretKey)
                         .build()
                         .parseClaimsJws(token)
                         .getBody();
-                // --- CORRECTED FIX END ---
 
-                String email = claims.getSubject(); // email or username
-                // It's safer to check if "roles" claim exists and is a List
-                List<?> rolesObject = claims.get("roles", List.class); // Get as List.class
+                String email = claims.getSubject();
+                List<?> rolesObject = claims.get("roles", List.class);
                 List<GrantedAuthority> authorities;
 
                 if (rolesObject != null && !rolesObject.isEmpty()) {
                     authorities = rolesObject.stream()
-                            .map(Object::toString) // Convert each element to String
+                            .map(Object::toString)
                             .map(SimpleGrantedAuthority::new)
                             .collect(Collectors.toList());
                 } else {
-                    authorities = List.of(); // No roles or empty list
+                    authorities = List.of();
                 }
 
                 UsernamePasswordAuthenticationToken auth =

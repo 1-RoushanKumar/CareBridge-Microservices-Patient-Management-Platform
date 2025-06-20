@@ -7,7 +7,6 @@ public class UserResponseDTO {
     private String email;
     private String role;
 
-    // Getters
     public UUID getId() {
         return id;
     }
@@ -20,7 +19,6 @@ public class UserResponseDTO {
         return role;
     }
 
-    // Setters
     public void setId(UUID id) {
         this.id = id;
     }

@@ -14,10 +14,8 @@ public class RegisterRequestDTO {
     @Size(min = 8, message = "Password must be at least 8 characters long")
     private String password;
 
-    // Optional: Allow specifying a role during registration, or set a default in the service
-    private String role; // e.g., "PATIENT", "ADMIN"
+    private String role;
 
-    // Getters and Setters
     public String getEmail() {
         return email;
     }

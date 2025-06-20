@@ -38,15 +38,14 @@ public class GlobalExceptionHandler {
         log.warn("User not found error: {}", ex.getMessage());
         Map<String, String> errors = new HashMap<>();
         errors.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errors); // 404 Not Found
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errors);
     }
 
-    // Generic exception handler for any unhandled exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
         log.error("An unexpected error occurred: {}", ex.getMessage(), ex);
         Map<String, String> errors = new HashMap<>();
         errors.put("message", "An unexpected error occurred. Please try again later.");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errors); // 500 Internal Server Error
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errors);
     }
 }

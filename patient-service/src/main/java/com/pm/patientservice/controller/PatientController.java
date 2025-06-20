@@ -2,7 +2,6 @@ package com.pm.patientservice.controller;
 
 import com.pm.patientservice.dto.PatientRequestDTO;
 import com.pm.patientservice.dto.PatientResponseDTO;
-import com.pm.patientservice.dto.validators.CreatePatientValidationGroup;
 import com.pm.patientservice.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,7 +16,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -36,7 +34,7 @@ public class PatientController {
             summary = "Get patients with optional search, filter, and pagination",
             description = "Retrieve a list of patients, optionally filtered by name or email, with pagination and sorting support."
     )
-    @PreAuthorize("hasRole('ADMIN')") // Only ADMIN can list all patients
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<PatientResponseDTO>> getPatients(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String email,
@@ -46,25 +44,19 @@ public class PatientController {
         return ResponseEntity.ok().body(patients);
     }
 
-    // Example: Get patient by ID - ADMIN can get any, PATIENT can only get their own
-    // Patient can use this endpoint to see his detail only (but before seeing his detail he first needs to register his
-    // email(if not already register) in auth-service with the same email as his patient email then he/she can see his detail with id).
     @GetMapping("/{id}")
     @Operation(summary = "Get patient by ID")
     @PreAuthorize("hasRole('ADMIN') or (hasRole('PATIENT') and @patientService.isOwner(#id, authentication.name))")
     public ResponseEntity<PatientResponseDTO> getPatientById(@PathVariable UUID id, Authentication authentication) {
-        // You'd need to implement isOwner method in PatientService
-        // Example: PatientService.isOwner(UUID patientId, String currentUserEmail)
         PatientResponseDTO patient = patientService.getPatientById(id);
         return ResponseEntity.ok().body(patient);
     }
 
-    // Example: Only ADMINs can create patients
     @PostMapping
     @Operation(summary = "Create a new patient")
-    @PreAuthorize("hasRole('ADMIN')") // Only ADMIN can create new patients
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PatientResponseDTO> createPatient(
-            @Validated({Default.class, CreatePatientValidationGroup.class})
+            @Validated({Default.class})
             @RequestBody PatientRequestDTO patientRequestDTO) {
         PatientResponseDTO responseDTO = patientService.createPatient(patientRequestDTO);
         return ResponseEntity.ok().body(responseDTO);
@@ -79,10 +71,9 @@ public class PatientController {
         return ResponseEntity.ok(patientService.updatePatient(id, dto, auth));
     }
 
-    // Example: Only ADMINs can delete patients
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete Patient")
-    @PreAuthorize("hasRole('ADMIN')") // Only ADMIN can delete patients
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletePatient(@PathVariable UUID id) {
         patientService.deletePatient(id);
         return ResponseEntity.noContent().build();
