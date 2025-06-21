@@ -58,6 +58,14 @@ spring:
             - StripPrefix=1
             - JwtValidation
 
+        - id: api-gateway-appointment-route
+          uri: http://appointment-service:7000
+          predicates:
+            - Path=/api/appointments/**
+          filters:
+            - StripPrefix=1
+            - JwtValidation
+
 auth:
   service:
     url: http://auth-service:4005 # Ensure this matches your Auth Service's host and port
