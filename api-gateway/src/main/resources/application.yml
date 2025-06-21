@@ -39,6 +39,15 @@ spring:
           filters:
             - RewritePath=/api-docs/auth,/v3/api-docs
 
+        # *** CORRECTED SECTION START ***
+        - id: api-docs-appointment-route
+          uri: http://appointment-service:7000
+          predicates:
+            - Path=/api-docs/appointments # Corrected: Path to match Swagger UI
+          filters:
+            - RewritePath=/api-docs/appointments,/v3/api-docs # Corrected: Rewrite path
+        # *** CORRECTED SECTION END ***
+
         # 4. General route for AUTH service's PROTECTED endpoints (APPLY JwtValidation)
         # This must come AFTER login/register routes.
         - id: auth-service-protected-route # Renamed for clarity from 'auth-service-route'
@@ -79,3 +88,5 @@ springdoc:
         url: /api-docs/auth # This is the path your Gateway exposes for Auth Service docs
       - name: Patient Service
         url: /api-docs/patients # This is the path your Gateway exposes for Patient Service docs
+      - name: Appointment Service
+        url: /api-docs/appointments # This is the path your Gateway exposes for Appointment Service docs
