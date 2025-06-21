@@ -1,0 +1,5 @@
+### GET request to example server
+PUT http://localhost:7000/api/appointments/5031c629-0357-46a8-a031-bfaba296beb3/cancel
+Authorization: Bearer {{token}}
+
+###

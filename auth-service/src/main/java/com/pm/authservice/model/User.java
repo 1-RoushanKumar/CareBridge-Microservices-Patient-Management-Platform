@@ -1,8 +1,7 @@
 package com.pm.authservice.model;
 
 import jakarta.persistence.*;
-
-import java.util.UUID;
+import java.util.UUID; // Import UUID
 
 @Entity
 @Table(name = "users")
@@ -18,7 +17,10 @@ public class User {
     private String password;
 
     @Column(nullable = false)
-    private String role;
+    private String role; // This will store the single role string (e.g., "ROLE_PATIENT", "ROLE_ADMIN")
+
+    @Column(name = "patient_uuid", unique = true) // NEW FIELD: Link to patient-service's Patient ID
+    private UUID patientUuid;
 
     public UUID getId() {
         return id;
@@ -50,5 +52,13 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public UUID getPatientUuid() { // NEW GETTER
+        return patientUuid;
+    }
+
+    public void setPatientUuid(UUID patientUuid) { // NEW SETTER
+        this.patientUuid = patientUuid;
     }
 }

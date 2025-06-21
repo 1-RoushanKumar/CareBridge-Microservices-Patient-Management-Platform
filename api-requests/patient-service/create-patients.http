@@ -3,12 +3,14 @@ POST http://localhost:4004/api/patients
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-
 {
-  "name": "Harry",
-  "email": "harry@g.com",
-  "address": "123 main street22",
-  "dateOfBirth": "1995-09-09"
+  "name": "Patient A",
+  "email": "patient_a@example.com",
+  "address": "123 Main St",
+  "dateOfBirth": "1990-01-01",
+  "contact": "1234567890",
+  "gender": "Female",
+  "emergencyContact": "0987654321"
 }
 
 ###

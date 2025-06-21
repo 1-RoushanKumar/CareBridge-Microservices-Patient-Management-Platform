@@ -79,4 +79,15 @@ public class PatientController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/by-email")
+    @Operation(summary = "Get patient details by email",
+            description = "Retrieves a patient's details by their email address. " +
+                          "Primarily for internal service communication (e.g., Auth Service).")
+    @PreAuthorize("permitAll()") // IMPORTANT: For production, secure this with internal service-to-service auth!
+    public ResponseEntity<PatientResponseDTO> getPatientByEmail(@RequestParam String email) {
+        PatientResponseDTO patient = patientService.getPatientByEmail(email);
+        // patientService.getPatientByEmail already handles PatientNotFoundException
+        return ResponseEntity.ok().body(patient);
+    }
+
 }

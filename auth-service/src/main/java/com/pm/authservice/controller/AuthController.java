@@ -4,6 +4,8 @@ import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.dto.LoginResponseDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
 import com.pm.authservice.dto.UserResponseDTO;
+import com.pm.authservice.exceptions.NotARegisteredPatientException;
+import com.pm.authservice.exceptions.UserAlreadyExistsException;
 import com.pm.authservice.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.HttpStatus;
@@ -39,12 +41,24 @@ public class AuthController {
         return ResponseEntity.ok(new LoginResponseDTO(token));
     }
 
-    @Operation(summary = "Register a new user") // NEW ENDPOINT
+    @Operation(summary = "Register a new user")
     @PostMapping("/register")
     public ResponseEntity<Void> register(@Validated @RequestBody RegisterRequestDTO registerRequestDTO) {
-        // You might want to return the created user's ID or a confirmation message
-        authService.registerNewUser(registerRequestDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201 Created
+        try {
+            authService.registerNewUser(registerRequestDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).build(); // 201 Created
+        } catch (UserAlreadyExistsException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build(); // 409 Conflict
+        } catch (NotARegisteredPatientException e) { // Handle the new exception
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null); // 400 Bad Request
+            // You could also return a specific message in the body:
+            // return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            // Catch any other unexpected errors during registration
+            System.err.println("Error during user registration: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build(); // 500 Internal Server Error
+        }
     }
 
     @Operation(summary = "Validate Token")

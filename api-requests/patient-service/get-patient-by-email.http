@@ -1,0 +1,3 @@
+### GET request to example server
+GET http://localhost:4000/patients/by-email?email=patient_a@example.com
+###

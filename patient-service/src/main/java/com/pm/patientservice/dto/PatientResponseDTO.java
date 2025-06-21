@@ -11,6 +11,21 @@ public class PatientResponseDTO {
     private String gender; // New field
     private String emergencyContact; // New field
 
+    public PatientResponseDTO(String id, String name, String email, String address, String dateOfBirth, String registeredDate, String contact, String gender, String emergencyContact) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+        this.address = address;
+        this.dateOfBirth = dateOfBirth;
+        this.registeredDate = registeredDate;
+        this.contact = contact;
+        this.gender = gender;
+        this.emergencyContact = emergencyContact;
+    }
+
+    public PatientResponseDTO() {
+    }
+
     public String getRegisteredDate() {
         return registeredDate;
     }

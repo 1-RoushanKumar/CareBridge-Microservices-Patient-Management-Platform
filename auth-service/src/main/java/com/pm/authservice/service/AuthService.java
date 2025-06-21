@@ -1,8 +1,11 @@
 package com.pm.authservice.service;
 
+import com.pm.authservice.client.PatientServiceClient; // Import the new client
 import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
 import com.pm.authservice.dto.UserResponseDTO;
+import com.pm.authservice.dto.PatientResponseDTO; // Import PatientResponseDTO
+import com.pm.authservice.exceptions.NotARegisteredPatientException; // Import your custom exception
 import com.pm.authservice.exceptions.UserAlreadyExistsException;
 import com.pm.authservice.exceptions.UserNotFoundException;
 import com.pm.authservice.mapper.UserMapper;
@@ -24,11 +27,14 @@ public class AuthService {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final PatientServiceClient patientServiceClient; // Inject PatientServiceClient
 
-    public AuthService(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    // Update constructor to inject PatientServiceClient
+    public AuthService(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, PatientServiceClient patientServiceClient) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.patientServiceClient = patientServiceClient; // Assign it
     }
 
     public Optional<String> authenticate(LoginRequestDTO loginRequestDTO) {
@@ -37,7 +43,7 @@ public class AuthService {
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             if (passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
-                return Optional.of(jwtUtil.generateToken(user.getEmail(), user.getRole()));
+                return Optional.of(jwtUtil.generateToken(user.getEmail(), user.getRole(), user.getPatientUuid()));
             }
         }
         return Optional.empty();
@@ -50,15 +56,11 @@ public class AuthService {
             User user = userService.findByEmail(username)
                     .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-            // Assuming your `User` model implements `UserDetails`.
-            // If not, you'd need to create a `UserDetails` object from your `User` here.
-            // Example if User doesn't implement UserDetails:
             UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                     user.getEmail(),
-                    user.getPassword(), // Password not used for validation here but required by constructor
+                    user.getPassword(),
                     java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole()))
             );
-
 
             return jwtUtil.validateToken(token, userDetails);
 
@@ -83,8 +85,27 @@ public class AuthService {
         User newUser = new User();
         newUser.setEmail(registerRequestDTO.getEmail());
         newUser.setPassword(passwordEncoder.encode(registerRequestDTO.getPassword()));
-        newUser.setRole(registerRequestDTO.getRole() != null && !registerRequestDTO.getRole().isBlank()
-                ? registerRequestDTO.getRole().toUpperCase() : "USER");
+
+        // Normalize role string and set default
+        String requestedRole = registerRequestDTO.getRole() != null && !registerRequestDTO.getRole().isBlank()
+                ? registerRequestDTO.getRole().toUpperCase() : "PATIENT";
+        newUser.setRole(requestedRole);
+
+        // Logic to handle patientUuid based on role and patient-service lookup
+        if ("PATIENT".equals(requestedRole)) {
+            // Try to find the patient in patient-service
+            Optional<PatientResponseDTO> patientOptional = patientServiceClient.getPatientByEmail(registerRequestDTO.getEmail());
+
+            if (patientOptional.isPresent()) {
+                // If patient found, set their UUID
+                newUser.setPatientUuid(patientOptional.get().getId());
+                System.out.println("DEBUG: Linked new patient user " + newUser.getEmail() + " to existing patientId: " + newUser.getPatientUuid());
+            } else {
+                // If patient not found in patient-service, throw custom exception
+                throw new NotARegisteredPatientException("User with email " + registerRequestDTO.getEmail() + " is not registered as a patient in the system.");
+            }
+        }
+        // For ADMIN or other roles, patientUuid remains null, which is the desired behavior.
 
         userService.saveUser(newUser);
     }
