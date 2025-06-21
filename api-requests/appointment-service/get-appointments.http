@@ -1,4 +1,4 @@
 ### GET request to example server
-GET http://localhost:7000/api/appointments
+GET http://localhost:7000/appointments
 Authorization: Bearer {{token}}
 ###

@@ -1,12 +1,12 @@
 ### Post request to example server
-POST http://localhost:7000/api/appointments
+POST http://localhost:7000/appointments
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "patientId": "223e4567-e89b-12d3-a456-426614174007",
+  "patientId": "123e4567-e89b-12d3-a456-426614174003",
   "doctorId": "e1a2b3c4-d5e6-7f89-a0b1-c2d3e4f56789",
-  "appointmentDateTime": "2025-12-25T10:00",
+  "appointmentDateTime": "2026-12-25T10:00",
   "reason": "Routine checkup By Me"
 }
 ###
