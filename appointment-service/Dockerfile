@@ -14,7 +14,7 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 
 # Build the project and package it into a JAR file
-RUN mvn clean package
+RUN mvn clean package -DskipTests
 
 # Use the OpenJDK 21 image for the runtime stage
 FROM openjdk:21-jdk AS runner

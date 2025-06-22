@@ -5,14 +5,17 @@ import com.roushan.appointmentservice.dtos.AppointmentResponseDTO;
 import com.roushan.appointmentservice.exception.ResourceNotFoundException;
 import com.roushan.appointmentservice.mapper.AppointmentMapper;
 import com.roushan.appointmentservice.model.Appointment;
+import com.roushan.appointmentservice.model.PatientDetails;
 import com.roushan.appointmentservice.model.enums.AppointmentStatus;
 import com.roushan.appointmentservice.repository.AppointmentRepository;
+import com.roushan.appointmentservice.repository.PatientDetailsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -20,10 +23,12 @@ import java.util.stream.Collectors;
 public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
+    private final PatientDetailsRepository patientDetailsRepository;
 
     @Autowired
-    public AppointmentService(AppointmentRepository appointmentRepository) {
+    public AppointmentService(AppointmentRepository appointmentRepository, PatientDetailsRepository patientDetailsRepository) {
         this.appointmentRepository = appointmentRepository;
+        this.patientDetailsRepository = patientDetailsRepository;
     }
 
     @Transactional
@@ -43,6 +48,20 @@ public class AppointmentService {
             }
             patientIdToBook = requestingUserId; // Use the authenticated patient's ID
         }
+
+        // --- NEW VALIDATION STEP: Check PatientDetails from local cache ---
+        Optional<PatientDetails> patient = patientDetailsRepository.findById(patientIdToBook);
+
+        if (patient.isEmpty()) {
+            throw new ResourceNotFoundException("Patient with ID " + patientIdToBook + " not found in local records. Cannot book appointment.");
+        }
+
+        // Assuming "ACTIVE" is the status for a valid patient
+        if (!"ACTIVE".equalsIgnoreCase(patient.get().getStatus())) {
+            // You might want a more specific exception like PatientInactiveException
+            throw new IllegalArgumentException("Patient with ID " + patientIdToBook + " is not active. Current status: " + patient.get().getStatus() + ". Cannot book appointment.");
+        }
+        // --- END NEW VALIDATION ---
 
         LocalDateTime appointmentTime = LocalDateTime.parse(requestDTO.getAppointmentDateTime());
         if (appointmentTime.isBefore(LocalDateTime.now())) {
