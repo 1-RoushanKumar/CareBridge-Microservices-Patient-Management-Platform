@@ -8,7 +8,6 @@ import jakarta.persistence.Id;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -39,15 +38,20 @@ public class Patient {
     @NotNull
     @Pattern(regexp = "^\\d{10}$", message = "Contact number must be 10 digits")
     @Column(unique = true)
-    private String contact; // New field
+    private String contact;
 
     @NotNull
-    private String gender; // New field
+    private String gender;
 
     @NotNull
     @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits")
-    private String emergencyContact; // New field
+    private String emergencyContact;
 
+    // --- NEW FIELD FOR BILLING STATUS ---
+    @Column(nullable = false) // Assuming a patient *will* have a billing status eventually
+    private String billingAccountStatus = "PENDING_ACCOUNT_CREATION"; // Default status
+
+    // Getters and Setters (existing ones go here)
     public UUID getId() {
         return id;
     }
@@ -118,5 +122,14 @@ public class Patient {
 
     public void setEmergencyContact(@NotNull @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits") String emergencyContact) {
         this.emergencyContact = emergencyContact;
+    }
+
+    // --- NEW GETTER AND SETTER FOR BILLING STATUS ---
+    public String getBillingAccountStatus() {
+        return billingAccountStatus;
+    }
+
+    public void setBillingAccountStatus(String billingAccountStatus) {
+        this.billingAccountStatus = billingAccountStatus;
     }
 }

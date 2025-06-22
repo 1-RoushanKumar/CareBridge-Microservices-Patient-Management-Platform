@@ -1,0 +1,16 @@
+// billing-service/src/main/proto/billing_events.proto
+syntax = "proto3";
+
+package billing.events; // New package for billing events
+
+option java_multiple_files = true;
+
+message BillingAccountEvent {
+  string accountId = 1;      // The UUID of the billing account
+  string patientId = 2;      // The UUID of the patient associated with this account
+  string name = 3;           // Patient/account name
+  string email = 4;          // Patient/account email
+  string status = 5;         // Current status of the billing account (e.g., "ACTIVE", "INACTIVE", "SUSPENDED")
+  string eventType = 6;      // E.g., "BILLING_ACCOUNT_CREATED", "BILLING_ACCOUNT_UPDATED", "BILLING_ACCOUNT_DELETED", "PAYMENT_RECEIVED"
+  string timestamp = 7;      // When the event occurred (ISO 8601 string from LocalDateTime)
+}

@@ -1,5 +1,5 @@
 -- Ensure the 'patient' table exists
-DROP TABLE IF EXISTS patient; -- Added to ensure a clean slate if restarting the database
+DROP TABLE IF EXISTS patient CASCADE; -- Added CASCADE to handle dependencies cleanly
 
 CREATE TABLE IF NOT EXISTS patient
 (
@@ -9,10 +9,15 @@ CREATE TABLE IF NOT EXISTS patient
     address            VARCHAR(255)        NOT NULL,
     date_of_birth      DATE                NOT NULL,
     registered_date    DATE                NOT NULL,
-    contact            VARCHAR(15) UNIQUE  NOT NULL, -- New column: Contact number
-    gender             VARCHAR(10)         NOT NULL, -- New column: Gender
-    emergency_contact  VARCHAR(15)         NOT NULL  -- New column: Emergency Contact
+    contact            VARCHAR(15) UNIQUE  NOT NULL,
+    gender             VARCHAR(10)         NOT NULL,
+    emergency_contact  VARCHAR(15)         NOT NULL,
+    -- Add the new column here with a default value and NOT NULL constraint
+    billing_account_status VARCHAR(255) NOT NULL DEFAULT 'PENDING_ACCOUNT_CREATION'
 );
+
+-- Your INSERT statements follow, and they will pick up the default value automatically for this column.
+-- ... (rest of your INSERT statements) ...
 
 -- Insert well-known UUIDs for specific patients
 INSERT INTO patient (id, name, email, address, date_of_birth, registered_date, contact, gender, emergency_contact)
