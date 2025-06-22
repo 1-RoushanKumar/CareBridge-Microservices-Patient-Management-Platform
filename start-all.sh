@@ -10,15 +10,32 @@ containers=(
   kafka
   patient-service-db
   patient-service
+  appointment-service
+  appointment-service-db
 )
 
-# Start each container
+# Start database containers first (names ending with -db)
+echo "🗄️ Starting database containers..."
 for container in "${containers[@]}"; do
-  echo "🚀 Starting $container..."
-  docker start "$container"
+  if [[ "$container" == *-db ]]; then
+    echo "🚀 Starting DB: $container..."
+    docker start "$container"
+  fi
 done
 
-echo "✅ All containers started."
+# Wait for databases to be fully initialized
+echo "⏳ Waiting 15 seconds for databases to initialize..."
+sleep 15
 
+# Start other (non-database) containers
+echo "🛠️ Starting service containers..."
+for container in "${containers[@]}"; do
+  if [[ "$container" != *-db ]]; then
+    echo "🚀 Starting Service: $container..."
+    docker start "$container"
+  fi
+done
 
-#./start-all.sh to run.
+echo "✅ All containers started successfully."
+
+# Usage: ./start-all.sh
