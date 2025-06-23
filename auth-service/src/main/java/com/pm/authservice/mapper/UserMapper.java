@@ -6,10 +6,11 @@ import com.pm.authservice.model.User;
 public class UserMapper {
 
     public static UserResponseDTO toDTO(User user) {
-        UserResponseDTO dto = new UserResponseDTO();
-        dto.setId(user.getId());
-        dto.setEmail(user.getEmail());
-        dto.setRole(user.getRole());
-        return dto;
+        // Using Lombok's @Builder for more concise DTO creation
+        return UserResponseDTO.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
     }
 }

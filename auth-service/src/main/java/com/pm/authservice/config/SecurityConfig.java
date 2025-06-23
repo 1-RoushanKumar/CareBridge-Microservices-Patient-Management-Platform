@@ -1,4 +1,3 @@
-// auth-service/src/main/java/com/pm/authservice/config/SecurityConfig.java
 package com.pm.authservice.config;
 
 import com.pm.authservice.util.JwtAuthFilter;
@@ -37,10 +36,7 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        // Permit access to public endpoints (login, register, Swagger UI)
-                        // Removed "/validate" from permitAll()
-                        .requestMatchers("/login", "/register", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
-                        // All other requests require authentication (including /validate now)
+                        .requestMatchers("/login", "/register", "/v3/api-docs/**", "/swagger-ui/**", "/validate").permitAll() // /validate should also be public
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

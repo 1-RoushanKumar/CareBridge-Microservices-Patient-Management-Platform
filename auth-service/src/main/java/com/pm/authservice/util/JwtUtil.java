@@ -8,6 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -20,38 +21,46 @@ import java.util.UUID;
 import java.util.function.Function;
 
 @Component
-public class JwtUtil {
-    private final Key secretKey;
+public class JwtUtil implements InitializingBean { // Implement InitializingBean for secret key setup
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+    private SecretKey secretKey; // Changed to SecretKey
+
     private final long JWT_EXPIRATION_MS = 1000 * 60 * 60 * 10; // 10 hours
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
-    public JwtUtil(@Value("${jwt.secret}") String secret) {
-        logger.info("Auth-Service JWT Secret (raw): {}", secret);
-        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
-        logger.info("Auth-Service JWT Secret Key (derived): {}", secretKey.getEncoded());
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        if (jwtSecret == null || jwtSecret.isEmpty()) {
+            throw new IllegalArgumentException("JWT secret must not be null or empty.");
+        }
+        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        logger.info("JWTUtil initialized: Secret key loaded successfully.");
     }
 
-    // Modified method to include patientUuid
+    // Removed constructor that took String secret to use @Value and afterPropertiesSet
+
     public String generateToken(String email, String role, UUID patientUuid) {
+        // Ensure role is prefixed with "ROLE_"
         String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
 
-        // Start building claims, but don't call .build() yet
-        io.jsonwebtoken.ClaimsBuilder claimsBuilder = Jwts.claims()
+        Claims claims = Jwts.claims()
                 .subject(email)
-                .add("roles", List.of(prefixedRole));
+                .add("roles", List.of(prefixedRole))
+                .build(); // Build claims
 
-        // Add patient_id claim directly to the builder if patientUuid is not null
         if (patientUuid != null) {
-            claimsBuilder.add("patient_id", patientUuid.toString()); // Add to the builder, not the built Claims object
+            claims.put("patient_id", patientUuid.toString());
         }
 
-        // Now, build the Claims object after all desired claims are added
-        Claims claims = claimsBuilder.build();
+        Date issuedAt = new Date(System.currentTimeMillis());
+        Date expiration = new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS);
 
         return Jwts.builder()
-                .claims(claims) // Pass the fully constructed and immutable Claims object
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS))
+                .claims(claims)
+                .issuedAt(issuedAt)
+                .expiration(expiration)
                 .signWith(secretKey)
                 .compact();
     }
@@ -77,7 +86,6 @@ public class JwtUtil {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    // New method to extract patient_id from token
     public UUID extractPatientId(String token) {
         String patientIdString = extractClaim(token, claims -> claims.get("patient_id", String.class));
         return patientIdString != null ? UUID.fromString(patientIdString) : null;
@@ -92,14 +100,14 @@ public class JwtUtil {
             final String username = extractUsername(token);
             return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
         } catch (SignatureException e) {
-            logger.warn("Invalid JWT signature: " + e.getMessage());
-            return false;
+            logger.warn("Invalid JWT signature: {}", e.getMessage());
+            throw new JwtException("Invalid JWT signature.", e); // Re-throw specific exception
         } catch (JwtException e) {
-            logger.warn("Invalid JWT token: " + e.getMessage());
-            return false;
+            logger.warn("Invalid JWT token: {}", e.getMessage());
+            throw new JwtException("Invalid JWT token.", e); // Re-throw specific exception
         } catch (Exception e) {
-            logger.warn("Unexpected error during token validation: " + e.getMessage());
-            return false;
+            logger.error("Unexpected error during token validation: {}", e.getMessage(), e);
+            throw new JwtException("Unexpected error validating token.", e); // Re-throw generic exception
         }
     }
 }

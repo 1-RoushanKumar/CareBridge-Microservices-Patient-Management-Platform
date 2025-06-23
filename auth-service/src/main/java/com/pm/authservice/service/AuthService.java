@@ -1,22 +1,24 @@
 package com.pm.authservice.service;
 
-import com.pm.authservice.client.PatientServiceClient; // Import the new client
+import com.pm.authservice.client.PatientServiceClient;
 import com.pm.authservice.dto.LoginRequestDTO;
 import com.pm.authservice.dto.RegisterRequestDTO;
 import com.pm.authservice.dto.UserResponseDTO;
-import com.pm.authservice.dto.PatientResponseDTO; // Import PatientResponseDTO
-import com.pm.authservice.exceptions.NotARegisteredPatientException; // Import your custom exception
+import com.pm.authservice.dto.PatientResponseDTO;
+import com.pm.authservice.exceptions.NotARegisteredPatientException;
 import com.pm.authservice.exceptions.UserAlreadyExistsException;
 import com.pm.authservice.exceptions.UserNotFoundException;
 import com.pm.authservice.mapper.UserMapper;
 import com.pm.authservice.model.User;
 import com.pm.authservice.util.JwtUtil;
 import io.jsonwebtoken.JwtException;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -24,90 +26,83 @@ import java.util.UUID;
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final PatientServiceClient patientServiceClient; // Inject PatientServiceClient
+    private final PatientServiceClient patientServiceClient;
 
-    // Update constructor to inject PatientServiceClient
     public AuthService(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, PatientServiceClient patientServiceClient) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
-        this.patientServiceClient = patientServiceClient; // Assign it
+        this.patientServiceClient = patientServiceClient;
     }
 
-    public Optional<String> authenticate(LoginRequestDTO loginRequestDTO) {
-        Optional<User> userOptional = userService.findByEmail(loginRequestDTO.getEmail());
+    public String authenticate(LoginRequestDTO loginRequestDTO) {
+        User user = userService.findByEmail(loginRequestDTO.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password."));
 
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            if (passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
-                return Optional.of(jwtUtil.generateToken(user.getEmail(), user.getRole(), user.getPatientUuid()));
-            }
+        if (!passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Invalid email or password.");
         }
-        return Optional.empty();
+
+        log.info("User {} authenticated successfully.", user.getEmail());
+        return jwtUtil.generateToken(user.getEmail(), user.getRole(), user.getPatientUuid());
     }
 
-    public boolean validateToken(String token) {
+    public void validateToken(String token) {
         try {
             String username = jwtUtil.extractUsername(token);
 
-            User user = userService.findByEmail(username)
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+            UserDetails userDetails = userService.loadUserByUsername(username); // This throws UsernameNotFoundException
 
-            UserDetails userDetails = new org.springframework.security.core.userdetails.User(
-                    user.getEmail(),
-                    user.getPassword(),
-                    java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole()))
-            );
-
-            return jwtUtil.validateToken(token, userDetails);
-
+            if (!jwtUtil.validateToken(token, userDetails)) {
+                throw new JwtException("Token validation failed for user: " + username);
+            }
+            log.info("Token validated successfully for user: {}", username);
         } catch (UsernameNotFoundException e) {
-            System.err.println("Validation Error: User from token not found - " + e.getMessage());
-            return false;
+            log.warn("Validation Error: User from token not found - {}", e.getMessage());
+            throw e; // Rethrow to be handled by GlobalExceptionHandler
         } catch (JwtException e) {
-            System.err.println("Validation Error: JWT invalid - " + e.getMessage());
-            return false;
+            log.warn("Validation Error: JWT invalid - {}", e.getMessage());
+            throw e; // Rethrow to be handled by GlobalExceptionHandler
         } catch (Exception e) {
-            System.err.println("Validation Error: An unexpected error occurred - " + e.getMessage());
-            e.printStackTrace();
-            return false;
+            log.error("Validation Error: An unexpected error occurred - {}", e.getMessage(), e);
+            throw new RuntimeException("Unexpected error during token validation.", e); // General error
         }
     }
 
     public void registerNewUser(RegisterRequestDTO registerRequestDTO) {
         if (userService.findByEmail(registerRequestDTO.getEmail()).isPresent()) {
-            throw new UserAlreadyExistsException("User with email " + registerRequestDTO.getEmail() + " already exists.");
+            throw new UserAlreadyExistsException("User with email '" + registerRequestDTO.getEmail() + "' already exists.");
         }
 
         User newUser = new User();
         newUser.setEmail(registerRequestDTO.getEmail());
         newUser.setPassword(passwordEncoder.encode(registerRequestDTO.getPassword()));
 
-        // Normalize role string and set default
         String requestedRole = registerRequestDTO.getRole() != null && !registerRequestDTO.getRole().isBlank()
                 ? registerRequestDTO.getRole().toUpperCase() : "PATIENT";
         newUser.setRole(requestedRole);
 
-        // Logic to handle patientUuid based on role and patient-service lookup
         if ("PATIENT".equals(requestedRole)) {
-            // Try to find the patient in patient-service
             Optional<PatientResponseDTO> patientOptional = patientServiceClient.getPatientByEmail(registerRequestDTO.getEmail());
 
             if (patientOptional.isPresent()) {
-                // If patient found, set their UUID
                 newUser.setPatientUuid(patientOptional.get().getId());
-                System.out.println("DEBUG: Linked new patient user " + newUser.getEmail() + " to existing patientId: " + newUser.getPatientUuid());
+                log.info("Linked new patient user {} to existing patientId: {}", newUser.getEmail(), newUser.getPatientUuid());
             } else {
-                // If patient not found in patient-service, throw custom exception
-                throw new NotARegisteredPatientException("User with email " + registerRequestDTO.getEmail() + " is not registered as a patient in the system.");
+                throw new NotARegisteredPatientException("User with email '" + registerRequestDTO.getEmail() + "' is not registered as a patient in the system. Please register as a patient first.");
             }
+        } else {
+            // For ADMIN or other roles, if a patientUuid is not relevant, it remains null.
+            log.info("Registering user {} with role {}. No patient UUID linkage required.", newUser.getEmail(), requestedRole);
         }
-        // For ADMIN or other roles, patientUuid remains null, which is the desired behavior.
 
         userService.saveUser(newUser);
+        log.info("User {} registered successfully with role {}", newUser.getEmail(), newUser.getRole());
     }
 
     public UserResponseDTO getUserDetailsById(UUID id) {
