@@ -8,11 +8,15 @@ import jakarta.persistence.Id;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
+@Data
+@NoArgsConstructor
 public class Patient {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -47,89 +51,6 @@ public class Patient {
     @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits")
     private String emergencyContact;
 
-    // --- NEW FIELD FOR BILLING STATUS ---
-    @Column(nullable = false) // Assuming a patient *will* have a billing status eventually
-    private String billingAccountStatus = "PENDING_ACCOUNT_CREATION"; // Default status
-
-    // Getters and Setters (existing ones go here)
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public @NotNull String getName() {
-        return name;
-    }
-
-    public void setName(@NotNull String name) {
-        this.name = name;
-    }
-
-    public @NotNull @Email String getEmail() {
-        return email;
-    }
-
-    public void setEmail(@NotNull @Email String email) {
-        this.email = email;
-    }
-
-    public @NotNull String getAddress() {
-        return address;
-    }
-
-    public void setAddress(@NotNull String address) {
-        this.address = address;
-    }
-
-    public @NotNull LocalDate getDateOfBirth() {
-        return dateOfBirth;
-    }
-
-    public void setDateOfBirth(@NotNull LocalDate dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
-    }
-
-    public @NotNull LocalDate getRegisteredDate() {
-        return registeredDate;
-    }
-
-    public void setRegisteredDate(@NotNull LocalDate registeredDate) {
-        this.registeredDate = registeredDate;
-    }
-
-    public @NotNull @Pattern(regexp = "^\\d{10}$", message = "Contact number must be 10 digits") String getContact() {
-        return contact;
-    }
-
-    public void setContact(@NotNull @Pattern(regexp = "^\\d{10}$", message = "Contact number must be 10 digits") String contact) {
-        this.contact = contact;
-    }
-
-    public @NotNull String getGender() {
-        return gender;
-    }
-
-    public void setGender(@NotNull String gender) {
-        this.gender = gender;
-    }
-
-    public @NotNull @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits") String getEmergencyContact() {
-        return emergencyContact;
-    }
-
-    public void setEmergencyContact(@NotNull @Pattern(regexp = "^\\d{10}$", message = "Emergency contact number must be 10 digits") String emergencyContact) {
-        this.emergencyContact = emergencyContact;
-    }
-
-    // --- NEW GETTER AND SETTER FOR BILLING STATUS ---
-    public String getBillingAccountStatus() {
-        return billingAccountStatus;
-    }
-
-    public void setBillingAccountStatus(String billingAccountStatus) {
-        this.billingAccountStatus = billingAccountStatus;
-    }
+    @Column(nullable = false)
+    private String billingAccountStatus = "PENDING_ACCOUNT_CREATION";
 }

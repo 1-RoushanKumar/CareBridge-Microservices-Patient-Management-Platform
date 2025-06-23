@@ -19,17 +19,19 @@ public class KafkaProducer {
     }
 
     public void sendEvent(Patient patient) {
-        PatientEvent event = PatientEvent.newBuilder()
-                .setPatientId(patient.getId().toString())
-                .setName(patient.getName())
-                .setEmail(patient.getEmail())
-                .setEventType("PATIENT_CREATED")
-                .build();
-
         try {
+            PatientEvent event = PatientEvent.newBuilder()
+                    .setPatientId(patient.getId().toString())
+                    .setName(patient.getName())
+                    .setEmail(patient.getEmail())
+                    .setEventType("PATIENT_CREATED")
+                    .setRegisteredDate(patient.getRegisteredDate().toString()) // Added registeredDate to event
+                    .build();
+
             kafkaTemplate.send("patient", event.toByteArray());
+            log.info("Patient-Service: Sent PatientCreated event for patientId {}", patient.getId());
         } catch (Exception e) {
-            log.error("Error sending PatientCreated event: {}", event);
+            log.error("Patient-Service: Error sending PatientCreated event for patient with ID {}: {}", patient.getId(), e.getMessage(), e);
         }
     }
 }

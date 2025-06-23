@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,14 +18,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.crypto.SecretKey;
 
 @Component
-public class JwtAuthFilter extends OncePerRequestFilter {
+public class JwtAuthFilter extends OncePerRequestFilter implements InitializingBean {
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -33,7 +33,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Override
     public void afterPropertiesSet() throws ServletException {
-        super.afterPropertiesSet();
         if (jwtSecret == null || jwtSecret.isEmpty()) {
             throw new IllegalArgumentException("JWT secret must not be null or empty.");
         }
@@ -51,7 +50,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String token = authHeader.substring(7);
 
                 if (this.secretKey == null) {
-                    this.secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+                    throw new IllegalStateException("JWT secret key has not been initialized.");
                 }
 
                 Claims claims = Jwts.parser()
@@ -61,10 +60,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         .getBody();
 
                 String email = claims.getSubject();
+
                 List<?> rolesObject = claims.get("roles", List.class);
                 List<GrantedAuthority> authorities;
 
-                if (rolesObject != null && !rolesObject.isEmpty()) {
+                if (rolesObject != null) {
                     authorities = rolesObject.stream()
                             .map(Object::toString)
                             .map(SimpleGrantedAuthority::new)
@@ -78,8 +78,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
             } catch (Exception e) {
-                System.err.println("JWT authentication failed: " + e.getClass().getName() + ": " + e.getMessage());
+                logger.error("JWT authentication failed: " + e.getClass().getName() + ": " + e.getMessage(), e);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("{\"message\": \"Invalid or expired JWT token.\"}");
                 return;
             }
         }

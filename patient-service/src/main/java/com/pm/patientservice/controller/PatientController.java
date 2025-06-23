@@ -59,14 +59,14 @@ public class PatientController {
             @Validated({Default.class})
             @RequestBody PatientRequestDTO patientRequestDTO) {
         PatientResponseDTO responseDTO = patientService.createPatient(patientRequestDTO);
-        return ResponseEntity.ok().body(responseDTO);
+        return ResponseEntity.status(201).body(responseDTO);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a patient")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('PATIENT') and @patientService.isOwner(#id, authentication.name))")
     public ResponseEntity<PatientResponseDTO> updatePatient(@PathVariable UUID id,
-                                                            @RequestBody PatientRequestDTO dto,
+                                                            @Validated @RequestBody PatientRequestDTO dto, // Add @Validated for update requests
                                                             Authentication auth) {
         return ResponseEntity.ok(patientService.updatePatient(id, dto, auth));
     }
@@ -83,11 +83,9 @@ public class PatientController {
     @Operation(summary = "Get patient details by email",
             description = "Retrieves a patient's details by their email address. " +
                           "Primarily for internal service communication (e.g., Auth Service).")
-    @PreAuthorize("permitAll()") // IMPORTANT: For production, secure this with internal service-to-service auth!
+    @PreAuthorize("permitAll()")
     public ResponseEntity<PatientResponseDTO> getPatientByEmail(@RequestParam String email) {
         PatientResponseDTO patient = patientService.getPatientByEmail(email);
-        // patientService.getPatientByEmail already handles PatientNotFoundException
         return ResponseEntity.ok().body(patient);
     }
-
 }

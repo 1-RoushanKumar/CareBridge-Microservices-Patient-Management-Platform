@@ -1,5 +1,14 @@
 package com.pm.patientservice.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class PatientResponseDTO {
     private String id;
     private String name;
@@ -7,94 +16,7 @@ public class PatientResponseDTO {
     private String address;
     private String dateOfBirth;
     private String registeredDate;
-    private String contact; // New field
-    private String gender; // New field
-    private String emergencyContact; // New field
-
-    public PatientResponseDTO(String id, String name, String email, String address, String dateOfBirth, String registeredDate, String contact, String gender, String emergencyContact) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.address = address;
-        this.dateOfBirth = dateOfBirth;
-        this.registeredDate = registeredDate;
-        this.contact = contact;
-        this.gender = gender;
-        this.emergencyContact = emergencyContact;
-    }
-
-    public PatientResponseDTO() {
-    }
-
-    public String getRegisteredDate() {
-        return registeredDate;
-    }
-
-    public void setRegisteredDate(String registeredDate) {
-        this.registeredDate = registeredDate;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getDateOfBirth() {
-        return dateOfBirth;
-    }
-
-    public void setDateOfBirth(String dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
-    }
-
-    public String getContact() {
-        return contact;
-    }
-
-    public void setContact(String contact) {
-        this.contact = contact;
-    }
-
-    public String getGender() {
-        return gender;
-    }
-
-    public void setGender(String gender) {
-        this.gender = gender;
-    }
-
-    public String getEmergencyContact() {
-        return emergencyContact;
-    }
-
-    public void setEmergencyContact(String emergencyContact) {
-        this.emergencyContact = emergencyContact;
-    }
+    private String contact;
+    private String gender;
+    private String emergencyContact;
 }

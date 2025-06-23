@@ -1,5 +1,5 @@
 ### GET request to example server
-PUT http://localhost:4004/api/appointments/c6ae101d-2c15-4589-a383-004977e3f799/cancel
+PUT http://localhost:4004/api/appointments/011c6d78-3393-495c-a650-182d56f244fd/cancel
 Authorization: Bearer {{token}}
 
 ###
