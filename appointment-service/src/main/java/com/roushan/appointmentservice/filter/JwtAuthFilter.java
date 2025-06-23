@@ -5,6 +5,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthFilter.class);
+
     private final JwtUtil jwtUtil;
 
     public JwtAuthFilter(JwtUtil jwtUtil) {
@@ -32,70 +36,69 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String userEmail;
+        String userEmail = null;
+        List<String> roles = null;
+        UUID patientId = null;
+        UUID doctorId = null; // New: To extract doctorId
 
-        // 1. Check for JWT in Authorization header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7); // Extract the token after "Bearer "
+        jwt = authHeader.substring(7);
 
         try {
             userEmail = jwtUtil.extractUsername(jwt);
+            roles = jwtUtil.extractRoles(jwt);
+            patientId = jwtUtil.extractPatientId(jwt);
+            doctorId = jwtUtil.extractDoctorId(jwt); // New: Extract doctorId
 
-            // 2. If username is valid and no authentication is currently set in context
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                // Validate the token's basic properties (e.g., expiration).
-                // API Gateway should have already fully validated signature with Auth Service.
+                // In a real application, you might fetch UserDetails from a UserDetailsService here
+                // and then validate the token against those UserDetails.
+                // For simplicity, we are just validating the token structurally and checking expiration.
                 if (jwtUtil.validateToken(jwt)) {
-                    // Extract roles and patient_id
-                    List<String> roles = jwtUtil.extractRoles(jwt);
-                    UUID patientId = jwtUtil.extractPatientId(jwt);
-
-                    // Create GrantedAuthorities from roles
                     List<SimpleGrantedAuthority> authorities = roles.stream()
                             .map(SimpleGrantedAuthority::new)
                             .collect(Collectors.toList());
 
-                    // Create an Authentication object
-                    // We use UsernamePasswordAuthenticationToken for simplicity with roles.
-                    // For patient_id, we'll store it directly on the Authentication object or a custom Principal.
-                    // Option 1: Store patient_id as a "detail"
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userEmail, // Principal: username (email)
-                            null,      // Credentials: not needed after token validation
-                            authorities // Authorities (roles)
+                            userEmail,
+                            null, // Credentials usually null for JWT as they are already validated
+                            authorities
                     );
 
-                    // Add patientId to the authentication details. This makes it accessible later.
-                    // We'll create a custom JwtAuthenticationDetails class to hold this.
                     authToken.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request)
                     );
 
-                    // Option 2: Use a custom Principal object if you need patientId directly on the principal
-                    // We will implement this more robustly in a later step
-                    // For now, let's stick with storing it in details and extracting from there.
-
                     SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                    // Store patientId and roles in request attributes for easier access in controllers/services
-                    // This is a common pattern for data extracted from JWT that isn't part of UserDetails
+                    // Set attributes for downstream use in controllers/services
                     request.setAttribute("userEmail", userEmail);
                     request.setAttribute("userRoles", roles);
-                    request.setAttribute("patientId", patientId); // Patient UUID
+                    if (patientId != null) {
+                        request.setAttribute("patientId", patientId);
+                    }
+                    if (doctorId != null) {
+                        request.setAttribute("doctorId", doctorId); // New: Set doctorId
+                    }
+                    logger.debug("Successfully authenticated user: {} with roles: {}", userEmail, roles);
+                } else {
+                    logger.warn("JWT token is invalid or expired for user: {}", userEmail);
                 }
             }
+        } catch (io.jsonwebtoken.JwtException e) {
+            logger.warn("JWT validation failed: {}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // Explicitly set status
+            response.getWriter().write("Invalid or expired token.");
+            return; // Stop processing and return immediately
         } catch (Exception e) {
-            // Log the error but continue the filter chain.
-            // Invalid tokens will result in no authentication being set,
-            // which Spring Security will then handle (e.g., 401 Unauthorized for protected resources).
-            logger.error("JWT authentication failed: {}");
-            // It's often good practice to clear the context on failure if it was partially set
-            SecurityContextHolder.clearContext();
+            logger.error("An unexpected error occurred during JWT authentication: {}", e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // Explicitly set status
+            response.getWriter().write("Authentication processing error.");
+            return; // Stop processing and return immediately
         }
 
         filterChain.doFilter(request, response);

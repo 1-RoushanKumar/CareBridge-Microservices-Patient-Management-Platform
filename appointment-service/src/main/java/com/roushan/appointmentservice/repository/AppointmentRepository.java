@@ -10,10 +10,9 @@ import java.util.UUID;
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
 
-    // Custom method to find all appointments for a specific patient
     List<Appointment> findByPatientId(UUID patientId);
 
+    List<Appointment> findByDoctorId(UUID doctorId); // Added this for Doctor role access
     // You might add more specific queries later, e.g.,
-    // List<Appointment> findByDoctorId(UUID doctorId);
     // List<Appointment> findByPatientIdAndStatus(UUID patientId, AppointmentStatus status);
 }

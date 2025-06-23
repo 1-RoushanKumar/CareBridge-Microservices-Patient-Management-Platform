@@ -11,24 +11,22 @@ import java.util.UUID;
 public class AppointmentMapper {
 
     public static AppointmentResponseDTO toDTO(Appointment appointment) {
-        AppointmentResponseDTO dto = new AppointmentResponseDTO();
-        dto.setId(appointment.getId().toString());
-        dto.setPatientId(appointment.getPatientId().toString());
-        dto.setDoctorId(appointment.getDoctorId().toString());
-        dto.setAppointmentDateTime(appointment.getAppointmentDateTime().toString());
-        dto.setStatus(appointment.getStatus().name());
-        return dto;
+        return AppointmentResponseDTO.builder()
+                .id(String.valueOf(appointment.getId()))
+                .patientId(String.valueOf(appointment.getPatientId()))
+                .doctorId(String.valueOf(appointment.getDoctorId()))
+                .appointmentDateTime(String.valueOf(appointment.getAppointmentDateTime()))
+                .status(appointment.getStatus().name())
+                .build();
     }
 
     public static Appointment toModel(AppointmentRequestDTO requestDTO) {
         Appointment appointment = new Appointment();
-        // Patient ID will be set by the service layer based on context (logged-in user or admin providing it)
-        if (requestDTO.getPatientId() != null && !requestDTO.getPatientId().isEmpty()) {
-            appointment.setPatientId(UUID.fromString(requestDTO.getPatientId()));
-        }
-        appointment.setDoctorId(UUID.fromString(requestDTO.getDoctorId()));
-        appointment.setAppointmentDateTime(LocalDateTime.parse(requestDTO.getAppointmentDateTime()));
-        // Set initial status, can be overridden if provided in DTO
+        // PatientId is now UUID in DTO, can directly set if provided
+        // Logic for setting patientId from token or DTO is in service, so just transfer
+        appointment.setPatientId(UUID.fromString(requestDTO.getPatientId())); // Now UUID
+        appointment.setDoctorId(UUID.fromString(requestDTO.getDoctorId())); // Now UUID
+        appointment.setAppointmentDateTime(LocalDateTime.parse(requestDTO.getAppointmentDateTime())); // Parse from String
         appointment.setStatus(
                 requestDTO.getStatus() != null && !requestDTO.getStatus().isEmpty()
                         ? AppointmentStatus.valueOf(requestDTO.getStatus().toUpperCase())

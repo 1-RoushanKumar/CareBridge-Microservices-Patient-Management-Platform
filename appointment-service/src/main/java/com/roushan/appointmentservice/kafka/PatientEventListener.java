@@ -24,75 +24,97 @@ public class PatientEventListener {
         this.patientDetailsRepository = patientDetailsRepository;
     }
 
-    // Configure Kafka listener. Ensure the 'topics' matches what patient-service sends.
-    @KafkaListener(topics = "${kafka.topics.patient-created:patient}", groupId = "appointment-service-patient-event-group")
-    @Transactional // Ensure atomicity for database operations
+    @KafkaListener(topics = "${kafka.topics.patient-events:patient}", groupId = "appointment-service-patient-event-group") // Changed topic name to be more generic for events
+    @Transactional
     public void handlePatientEvent(byte[] messageBytes) {
+        PatientEvent patientEvent;
         try {
-            // Deserialize the byte array back into a PatientEvent Protobuf object
-            PatientEvent patientEvent = PatientEvent.parseFrom(messageBytes);
+            patientEvent = PatientEvent.parseFrom(messageBytes);
+        } catch (InvalidProtocolBufferException e) {
+            log.error("Appointment-Service: Failed to parse PatientEvent Protobuf message from Kafka. Message bytes: {}. Error: {}",
+                    bytesToHexString(messageBytes), e.getMessage(), e);
+            // Consider sending to a dead-letter topic for manual inspection
+            return;
+        }
 
-            log.info("Appointment-Service: Received PatientEvent: {} for patientId: {}",
-                    patientEvent.getEventType(), patientEvent.getPatientId());
+        log.info("Appointment-Service: Received PatientEvent: {} for patientId: {}",
+                patientEvent.getEventType(), patientEvent.getPatientId());
 
-            UUID patientId = UUID.fromString(patientEvent.getPatientId());
+        UUID patientId;
+        try {
+            patientId = UUID.fromString(patientEvent.getPatientId());
+        } catch (IllegalArgumentException e) {
+            log.error("Appointment-Service: Invalid patientId UUID format in PatientEvent: '{}'. Event details: {}. Error: {}",
+                    patientEvent.getPatientId(), patientEvent.toString(), e.getMessage(), e);
+            return; // Skip processing invalid event
+        }
+
+        try {
             Optional<PatientDetails> existingPatientDetails = patientDetailsRepository.findById(patientId);
-
             PatientDetails patientDetails;
 
-            if ("PATIENT_CREATED".equals(patientEvent.getEventType())) {
-                if (existingPatientDetails.isPresent()) {
-                    log.warn("Appointment-Service: PatientDetails for ID {} already exists. Updating existing entry.", patientId);
-                    patientDetails = existingPatientDetails.get();
-                } else {
-                    log.info("Appointment-Service: Creating new PatientDetails entry for ID: {}", patientId);
-                    patientDetails = new PatientDetails();
-                    patientDetails.setId(patientId);
-                }
-                patientDetails.setName(patientEvent.getName());
-                patientDetails.setEmail(patientEvent.getEmail());
-                patientDetails.setStatus("ACTIVE"); // Assuming created patients are active by default
-                patientDetails.setLastUpdated(LocalDateTime.now());
-                patientDetailsRepository.save(patientDetails);
-                log.info("Appointment-Service: PatientDetails created/updated for patientId: {}", patientId);
-
-            } else if ("PATIENT_UPDATED".equals(patientEvent.getEventType())) {
-                if (existingPatientDetails.isPresent()) {
-                    patientDetails = existingPatientDetails.get();
-                    // Update relevant fields. PatientEvent might need more fields for updates if status changes.
-                    // For simplicity, let's just update name, email, and assume status remains active or is derived.
+            switch (patientEvent.getEventType()) {
+                case "PATIENT_CREATED":
+                    if (existingPatientDetails.isPresent()) {
+                        log.warn("Appointment-Service: PATIENT_CREATED event received for existing PatientDetails ID: {}. Updating existing entry.", patientId);
+                        patientDetails = existingPatientDetails.get();
+                    } else {
+                        log.info("Appointment-Service: Creating new PatientDetails entry for ID: {}", patientId);
+                        patientDetails = new PatientDetails();
+                        patientDetails.setId(patientId);
+                    }
                     patientDetails.setName(patientEvent.getName());
                     patientDetails.setEmail(patientEvent.getEmail());
-                    // If patient-service sends 'status' in PatientEvent for updates, use it:
-                    // patientDetails.setStatus(patientEvent.getStatus());
+                    patientDetails.setStatus("ACTIVE"); // Assuming created patients are active by default
                     patientDetails.setLastUpdated(LocalDateTime.now());
                     patientDetailsRepository.save(patientDetails);
-                    log.info("Appointment-Service: PatientDetails updated for patientId: {}", patientId);
-                } else {
-                    log.warn("Appointment-Service: PATIENT_UPDATED event received for non-existent PatientDetails ID: {}. Ignoring.", patientId);
-                }
-            } else if ("PATIENT_DELETED".equals(patientEvent.getEventType())) {
-                if (existingPatientDetails.isPresent()) {
-                    patientDetails = existingPatientDetails.get();
-                    patientDetails.setStatus("DELETED"); // Mark as deleted, or simply delete the record
-                    patientDetails.setLastUpdated(LocalDateTime.now());
-                    patientDetailsRepository.save(patientDetails); // Or patientDetailsRepository.delete(patientDetails);
-                    log.info("Appointment-Service: PatientDetails marked as DELETED for patientId: {}", patientId);
-                } else {
-                    log.warn("Appointment-Service: PATIENT_DELETED event received for non-existent PatientDetails ID: {}. Ignoring.", patientId);
-                }
-            } else {
-                log.warn("Appointment-Service: Received unknown PatientEvent type: {} for patientId: {}", patientEvent.getEventType(), patientEvent.getPatientId());
-            }
+                    log.info("Appointment-Service: PatientDetails created/updated for patientId: {}", patientId);
+                    break;
 
-        } catch (InvalidProtocolBufferException e) {
-            log.error("Appointment-Service: Failed to parse PatientEvent Protobuf message from Kafka: {}", e.getMessage(), e);
-            // For production, consider moving to a Dead Letter Queue (DLQ)
-        } catch (IllegalArgumentException e) { // Catches errors from UUID.fromString
-            log.error("Appointment-Service: Invalid patientId UUID in PatientEvent: {}. Message bytes: {}", e.getMessage(), new String(messageBytes), e);
+                case "PATIENT_UPDATED":
+                    if (existingPatientDetails.isPresent()) {
+                        patientDetails = existingPatientDetails.get();
+                        patientDetails.setName(patientEvent.getName());
+                        patientDetails.setEmail(patientEvent.getEmail());
+                        patientDetails.setLastUpdated(LocalDateTime.now());
+                        patientDetailsRepository.save(patientDetails);
+                        log.info("Appointment-Service: PatientDetails updated for patientId: {}", patientId);
+                    } else {
+                        log.warn("Appointment-Service: PATIENT_UPDATED event received for non-existent PatientDetails ID: {}. Cannot update.", patientId);
+                        // Consider creating if update implies upsert semantics, or ignore if strict update
+                    }
+                    break;
+
+                case "PATIENT_DELETED":
+                    if (existingPatientDetails.isPresent()) {
+                        patientDetails = existingPatientDetails.get();
+                        patientDetails.setStatus("DELETED"); // Mark as deleted (soft delete)
+                        patientDetails.setLastUpdated(LocalDateTime.now());
+                        patientDetailsRepository.save(patientDetails);
+                        log.info("Appointment-Service: PatientDetails marked as DELETED for patientId: {}", patientId);
+                        // If hard delete is desired: patientDetailsRepository.delete(patientDetails);
+                    } else {
+                        log.warn("Appointment-Service: PATIENT_DELETED event received for non-existent PatientDetails ID: {}. Nothing to delete.", patientId);
+                    }
+                    break;
+
+                default:
+                    log.warn("Appointment-Service: Received unknown PatientEvent type: '{}' for patientId: {}", patientEvent.getEventType(), patientId);
+            }
         } catch (Exception e) {
-            log.error("Appointment-Service: Error handling PatientEvent for message (bytes): {}. Error: {}",
-                    new String(messageBytes), e.getMessage(), e);
+            log.error("Appointment-Service: Error processing PatientEvent for patientId: {}. Event details: {}. Error: {}",
+                    patientId, patientEvent.toString(), e.getMessage(), e);
+            // Re-throw if transaction rollback is desired, or handle specific exceptions
+            throw new RuntimeException("Error processing patient event.", e);
         }
+    }
+
+    // Helper to convert byte array to hex string for better logging of raw messages
+    private String bytesToHexString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString().trim();
     }
 }

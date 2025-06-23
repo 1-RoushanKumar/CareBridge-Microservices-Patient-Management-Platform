@@ -4,7 +4,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "patientId": "a1fc9b3a-763e-4aa5-9e7d-1b67d8cd05c7",
+  "patientId": "194733ba-cbad-4c70-b2e0-31de13110562",
   "doctorId": "e1a2b3c4-d5e6-7f89-a0b1-c2d3e4f56789",
   "appointmentDateTime": "2026-12-25T10:00",
   "reason": "Routine checkup By me"

@@ -4,11 +4,11 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "name": "Patient W",
-  "email": "patient_W@example.com",
+  "name": "Patient T",
+  "email": "patient_T@example.com",
   "address": "123 Main St",
   "dateOfBirth": "1990-01-01",
-  "contact": "1131101111",
+  "contact": "1111101111",
   "gender": "Female",
   "emergencyContact": "0987654321"
 }

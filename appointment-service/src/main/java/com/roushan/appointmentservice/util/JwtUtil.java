@@ -1,13 +1,14 @@
-// src/main/java/com/roushan/appointmentservice/util/JwtUtil.java
 package com.roushan.appointmentservice.util;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders; // Keep this import
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean; // New import
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,38 +20,53 @@ import java.util.UUID;
 import java.util.function.Function;
 
 @Component
-public class JwtUtil {
+public class JwtUtil implements InitializingBean { // Implement InitializingBean
 
-    private final Key secretKey;
+    @Value("${jwt.secret}")
+    private String jwtSecret; // Use @Value to inject the secret
+
+    private SecretKey secretKey; // Changed to SecretKey type
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
-    public JwtUtil(@Value("${jwt.secret}") String secret) {
-        // --- ADD THIS LOGGING LINE ---
-        logger.info("Appointment-Service JWT Secret (raw): {}", secret);
-        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
-        logger.info("Appointment-Service JWT Secret Key (derived): {}", secretKey.getEncoded()); // This will print bytes, useful for comparison
-        // --- END ADDITION ---
+    // No need for a constructor that takes secret if using @Value and InitializingBean
+    public JwtUtil() {
     }
 
-    private Claims extractAllClaims(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith((SecretKey) secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-        } catch (SignatureException e) {
-            logger.error("Invalid JWT signature: {}", e.getMessage());
-            throw new RuntimeException("Invalid JWT signature", e);
-        } catch (Exception e) {
-            logger.error("Error parsing JWT: {}", e.getMessage(), e);
-            throw new RuntimeException("Error parsing JWT", e);
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        if (jwtSecret == null || jwtSecret.isEmpty()) {
+            logger.error("JWT secret property 'jwt.secret' is not set or is empty.");
+            throw new IllegalArgumentException("JWT secret must be configured.");
         }
+        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        logger.info("JWTUtil initialized: Secret key derived."); // Do not log the key itself
+    }
+
+
+    private Claims extractAllClaims(String token) {
+        // Use parserBuilder for modern JJWT API
+        return Jwts.parser()
+
+                .verifyWith((SecretKey) secretKey)
+
+                .build()
+
+                .parseSignedClaims(token)
+
+                .getPayload();
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+        try {
+            final Claims claims = extractAllClaims(token);
+            return claimsResolver.apply(claims);
+        } catch (JwtException e) { // Catch JJWT specific exceptions
+            logger.error("Failed to extract claim from token: {}", e.getMessage());
+            throw e; // Re-throw to be handled by filter/exception handler
+        } catch (Exception e) {
+            logger.error("An unexpected error occurred while extracting claim: {}", e.getMessage(), e);
+            throw new JwtException("Unexpected error during claim extraction.", e); // Wrap in JwtException
+        }
     }
 
     public String extractUsername(String token) {
@@ -58,7 +74,13 @@ public class JwtUtil {
     }
 
     public List<String> extractRoles(String token) {
-        return extractClaim(token, claims -> claims.get("roles", List.class));
+        // Ensure that roles are stored as a List in the JWT claims
+        // If roles can be single String, handle accordingly
+        Object roles = extractClaim(token, claims -> claims.get("roles"));
+        if (roles instanceof List) {
+            return (List<String>) roles;
+        }
+        return List.of(); // Return empty list if not a list
     }
 
     public UUID extractPatientId(String token) {
@@ -66,19 +88,30 @@ public class JwtUtil {
         return patientIdString != null ? UUID.fromString(patientIdString) : null;
     }
 
+    // New method to extract Doctor ID from token
+    public UUID extractDoctorId(String token) {
+        String doctorIdString = extractClaim(token, claims -> claims.get("doctor_id", String.class));
+        return doctorIdString != null ? UUID.fromString(doctorIdString) : null;
+    }
+
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    public Boolean isTokenExpired(String token) {
+    private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
+    // Simple validation for internal filter use
     public Boolean validateToken(String token) {
         try {
             return !isTokenExpired(token);
+        } catch (JwtException e) {
+            // This is already logged by extractClaim methods if they throw
+            logger.warn("Token validation failed due to JWT exception: {}", e.getMessage());
+            return false;
         } catch (Exception e) {
-            logger.warn("Token validation failed: {}", e.getMessage());
+            logger.error("Unexpected error during token validation: {}", e.getMessage(), e);
             return false;
         }
     }
