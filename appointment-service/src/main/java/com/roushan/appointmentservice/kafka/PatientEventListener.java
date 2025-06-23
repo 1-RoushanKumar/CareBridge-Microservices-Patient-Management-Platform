@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import patient.events.PatientEvent;
+import patient.events.PatientEvent; // This is the generated Protobuf class
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -26,46 +26,57 @@ public class PatientEventListener {
 
     // Configure Kafka listener. Ensure the 'topics' matches what patient-service sends.
     @KafkaListener(topics = "${kafka.topics.patient-created:patient}", groupId = "appointment-service-patient-event-group")
-    @Transactional
+    @Transactional // Ensure atomicity for database operations
     public void handlePatientEvent(byte[] messageBytes) {
         try {
+            // Deserialize the byte array back into a PatientEvent Protobuf object
             PatientEvent patientEvent = PatientEvent.parseFrom(messageBytes);
 
-            log.info("Appointment-Service: Received PatientEvent: {} for patientId: {} with status: {}",
-                    patientEvent.getEventType(), patientEvent.getPatientId(), patientEvent.getStatus()); // Updated log
+            log.info("Appointment-Service: Received PatientEvent: {} for patientId: {}",
+                    patientEvent.getEventType(), patientEvent.getPatientId());
 
             UUID patientId = UUID.fromString(patientEvent.getPatientId());
             Optional<PatientDetails> existingPatientDetails = patientDetailsRepository.findById(patientId);
 
             PatientDetails patientDetails;
 
-            // Handle PATIENT_CREATED and PATIENT_UPDATED similarly by creating/updating
-            if ("PATIENT_CREATED".equals(patientEvent.getEventType()) || "PATIENT_UPDATED".equals(patientEvent.getEventType())) {
+            if ("PATIENT_CREATED".equals(patientEvent.getEventType())) {
                 if (existingPatientDetails.isPresent()) {
-                    log.info("Appointment-Service: Updating existing PatientDetails entry for ID: {}", patientId);
+                    log.warn("Appointment-Service: PatientDetails for ID {} already exists. Updating existing entry.", patientId);
                     patientDetails = existingPatientDetails.get();
                 } else {
-                    if ("PATIENT_UPDATED".equals(patientEvent.getEventType())) {
-                        log.warn("Appointment-Service: PATIENT_UPDATED event received for non-existent PatientDetails ID: {}. Creating new entry.", patientId);
-                    } else {
-                        log.info("Appointment-Service: Creating new PatientDetails entry for ID: {}", patientId);
-                    }
+                    log.info("Appointment-Service: Creating new PatientDetails entry for ID: {}", patientId);
                     patientDetails = new PatientDetails();
                     patientDetails.setId(patientId);
                 }
                 patientDetails.setName(patientEvent.getName());
                 patientDetails.setEmail(patientEvent.getEmail());
-                patientDetails.setStatus(patientEvent.getStatus()); // <-- Use status from the event!
+                patientDetails.setStatus("ACTIVE"); // Assuming created patients are active by default
                 patientDetails.setLastUpdated(LocalDateTime.now());
                 patientDetailsRepository.save(patientDetails);
-                log.info("Appointment-Service: PatientDetails created/updated for patientId: {} with status: {}", patientId, patientEvent.getStatus());
+                log.info("Appointment-Service: PatientDetails created/updated for patientId: {}", patientId);
 
+            } else if ("PATIENT_UPDATED".equals(patientEvent.getEventType())) {
+                if (existingPatientDetails.isPresent()) {
+                    patientDetails = existingPatientDetails.get();
+                    // Update relevant fields. PatientEvent might need more fields for updates if status changes.
+                    // For simplicity, let's just update name, email, and assume status remains active or is derived.
+                    patientDetails.setName(patientEvent.getName());
+                    patientDetails.setEmail(patientEvent.getEmail());
+                    // If patient-service sends 'status' in PatientEvent for updates, use it:
+                    // patientDetails.setStatus(patientEvent.getStatus());
+                    patientDetails.setLastUpdated(LocalDateTime.now());
+                    patientDetailsRepository.save(patientDetails);
+                    log.info("Appointment-Service: PatientDetails updated for patientId: {}", patientId);
+                } else {
+                    log.warn("Appointment-Service: PATIENT_UPDATED event received for non-existent PatientDetails ID: {}. Ignoring.", patientId);
+                }
             } else if ("PATIENT_DELETED".equals(patientEvent.getEventType())) {
                 if (existingPatientDetails.isPresent()) {
                     patientDetails = existingPatientDetails.get();
-                    patientDetails.setStatus("DELETED"); // Explicitly set to DELETED for logical deletion
+                    patientDetails.setStatus("DELETED"); // Mark as deleted, or simply delete the record
                     patientDetails.setLastUpdated(LocalDateTime.now());
-                    patientDetailsRepository.save(patientDetails); // Or consider patientDetailsRepository.delete(patientDetails);
+                    patientDetailsRepository.save(patientDetails); // Or patientDetailsRepository.delete(patientDetails);
                     log.info("Appointment-Service: PatientDetails marked as DELETED for patientId: {}", patientId);
                 } else {
                     log.warn("Appointment-Service: PATIENT_DELETED event received for non-existent PatientDetails ID: {}. Ignoring.", patientId);
@@ -76,7 +87,8 @@ public class PatientEventListener {
 
         } catch (InvalidProtocolBufferException e) {
             log.error("Appointment-Service: Failed to parse PatientEvent Protobuf message from Kafka: {}", e.getMessage(), e);
-        } catch (IllegalArgumentException e) {
+            // For production, consider moving to a Dead Letter Queue (DLQ)
+        } catch (IllegalArgumentException e) { // Catches errors from UUID.fromString
             log.error("Appointment-Service: Invalid patientId UUID in PatientEvent: {}. Message bytes: {}", e.getMessage(), new String(messageBytes), e);
         } catch (Exception e) {
             log.error("Appointment-Service: Error handling PatientEvent for message (bytes): {}. Error: {}",
