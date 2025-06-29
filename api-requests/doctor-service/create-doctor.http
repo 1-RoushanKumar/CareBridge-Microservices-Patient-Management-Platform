@@ -1,5 +1,5 @@
 ### GET request to example server
-POST http://localhost:8081/doctors
+POST http://localhost:4004/api/doctors
 Authorization: Bearer {{token}}
 Content-Type: application/json
 

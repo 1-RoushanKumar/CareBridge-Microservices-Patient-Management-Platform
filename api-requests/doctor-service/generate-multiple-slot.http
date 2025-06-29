@@ -1,5 +1,5 @@
 ### GET request to example server
-POST http://localhost:8081/doctors/95dd2413-799a-4408-926a-e04dd8b0fbca/slots/generate?startDate=2025-07-01&endDate=2025-07-01&startTime=09:00&endTime=12:00&durationMinutes=30
+POST http://localhost:4004/api/doctors/95dd2413-799a-4408-926a-e04dd8b0fbca/slots/generate?startDate=2025-07-01&endDate=2025-07-01&startTime=09:00&endTime=12:00&durationMinutes=30
 Authorization: Bearer {{token}}
 Content-Type: application/json
 ###

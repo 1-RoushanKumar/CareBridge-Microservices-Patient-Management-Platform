@@ -75,6 +75,14 @@ spring:
             - StripPrefix=1
             - JwtValidation
 
+        - id: api-gateway-doctor-route
+          uri: http://doctor-service:8081
+          predicates:
+            - Path=/api/doctors/**
+          filters:
+            - StripPrefix=1
+            - JwtValidation
+
 auth:
   service:
     url: http://auth-service:4005 # Ensure this matches your Auth Service's host and port
