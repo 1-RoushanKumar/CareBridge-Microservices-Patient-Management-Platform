@@ -1,0 +1,7 @@
+### GET request to example server
+GET http://localhost:8081/doctors/slots/available?doctorId=a241c349-837b-464d-a6b0-5bcd2eda63cc&date=2025-07-11
+
+#GET http://localhost:8081/doctors/slots/available?specialization=Cardiology&date=2025-07-11
+
+
+###

@@ -4,9 +4,10 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "patientId": "194733ba-cbad-4c70-b2e0-31de13110562",
-  "doctorId": "e1a2b3c4-d5e6-7f89-a0b1-c2d3e4f56789",
-  "appointmentDateTime": "2026-12-25T10:00",
-  "reason": "Routine checkup By me"
+  "patientId": "586297dc-352e-4239-a598-d6e5af8ba171",
+  "doctorId": "a241c349-837b-464d-a6b0-5bcd2eda63cc",
+  "appointmentDateTime": "2025-07-12T11:30",
+  "status": "Booked by admin",
+  "doctorSlotId": "94b9a289-f030-4e4e-aa5a-6964c085f35e"
 }
 ###

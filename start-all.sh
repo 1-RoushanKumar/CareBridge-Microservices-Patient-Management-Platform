@@ -12,6 +12,8 @@ containers=(
   patient-service
   appointment-service
   appointment-service-db
+  doctor-service-db
+  doctor-service
 )
 
 # Start database containers first (names ending with -db)

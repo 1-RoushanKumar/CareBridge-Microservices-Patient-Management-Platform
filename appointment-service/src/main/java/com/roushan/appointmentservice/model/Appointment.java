@@ -1,3 +1,4 @@
+// src/main/java/com/roushan/appointmentservice/model/Appointment.java (Modified)
 package com.roushan.appointmentservice.model;
 
 import com.roushan.appointmentservice.model.enums.AppointmentStatus;
@@ -32,4 +33,7 @@ public class Appointment {
     @NotNull
     @Enumerated(EnumType.STRING)
     private AppointmentStatus status;
+
+    // NEW FIELD to link to the specific slot in DoctorService
+    private UUID doctorSlotId;
 }

@@ -1,0 +1,18 @@
+### GET request to example server
+POST http://localhost:8081/doctors
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "firstName": "Saurav",
+  "lastName": "Kumar",
+  "specialization": "Cardiology",
+  "email": "saurav@g.com",
+  "phoneNumber": "125-456-7880",
+  "licenseNumber": "MD11341",
+  "experienceYears": 12,
+  "clinicAddress": "Patna, Bihar",
+  "status": "ACTIVE"
+}
+
+###
