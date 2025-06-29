@@ -1,4 +1,3 @@
-# api-gateway/src/main/resources/application.yml
 server:
   port: 4004
 
@@ -8,23 +7,25 @@ spring:
       routes:
         # --- IMPORTANT: Order matters here! More specific rules should come first. ---
 
-        # 1. Route for AUTH service's public login endpoint (DO NOT apply JwtValidation)
+        # Route for AUTH service's public login endpoint (DO NOT apply JwtValidation)
         - id: auth-service-login-route
           uri: http://auth-service:4005
           predicates:
             - Path=/auth/login
           filters:
-            - StripPrefix=1 # Remove '/auth' prefix before forwarding to Auth Service
+            # Remove '/auth' prefix before forwarding to Auth Service
+            - StripPrefix=1
 
-        # 2. Route for AUTH service's public register endpoint (DO NOT apply JwtValidation)
+        # Route for AUTH service's public register endpoint (DO NOT apply JwtValidation)
         - id: auth-service-register-route
           uri: http://auth-service:4005
           predicates:
             - Path=/auth/register
           filters:
-            - StripPrefix=1 # Remove '/auth' prefix
+            # Remove '/auth' prefix
+            - StripPrefix=1
 
-        # 3. Routes for API documentation (generally public, no JwtValidation needed)
+        # Routes for API documentation (generally public, no JwtValidation needed)
         - id: api-docs-patient-route
           uri: http://patient-service:4000
           predicates:
@@ -39,33 +40,35 @@ spring:
           filters:
             - RewritePath=/api-docs/auth,/v3/api-docs
 
-        # *** CORRECTED SECTION START ***
         - id: api-docs-appointment-route
           uri: http://appointment-service:7000
           predicates:
-            - Path=/api-docs/appointments # Corrected: Path to match Swagger UI
+            # Corrected: Path to match Swagger UI
+            - Path=/api-docs/appointments
           filters:
-            - RewritePath=/api-docs/appointments,/v3/api-docs # Corrected: Rewrite path
-        # *** CORRECTED SECTION END ***
+            # Corrected: Rewrite path
+            - RewritePath=/api-docs/appointments,/v3/api-docs
 
         - id: api-docs-doctor-route
           uri: http://doctor-service:8081
           predicates:
-            - Path=/api-docs/doctor # Corrected: Path to match Swagger UI
+            # Corrected: Path to match Swagger UI
+            - Path=/api-docs/doctor
           filters:
             - RewritePath=/api-docs/doctor,/v3/api-docs
 
-        # 4. General route for AUTH service's PROTECTED endpoints (APPLY JwtValidation)
+        # General route for AUTH service's PROTECTED endpoints (APPLY JwtValidation)
         # This must come AFTER login/register routes.
-        - id: auth-service-protected-route # Renamed for clarity from 'auth-service-route'
+        - id: auth-service-protected-route
           uri: http://auth-service:4005
           predicates:
-            - Path=/auth/** # This will catch all /auth/* requests not handled by more specific rules above
-          filters:
+            # This will catch all /auth/* requests not handled by more specific rules above
+            - Path=/auth/** filters:
             - StripPrefix=1
-            - JwtValidation # Apply your JWT validation filter here
+            # Apply your JWT validation filter here
+            - JwtValidation
 
-        # 5. Route for Patient Service endpoints (APPLY JwtValidation)
+        # Route for Patient Service endpoints (APPLY JwtValidation)
         - id: api-gateway-patient-route
           uri: http://patient-service:4000
           predicates:
@@ -74,6 +77,7 @@ spring:
             - StripPrefix=1
             - JwtValidation
 
+        # Route for Appointment Service endpoints (APPLY JwtValidation)
         - id: api-gateway-appointment-route
           uri: http://appointment-service:7000
           predicates:
@@ -82,6 +86,7 @@ spring:
             - StripPrefix=1
             - JwtValidation
 
+        # Route for Doctor Service endpoints (APPLY JwtValidation)
         - id: api-gateway-doctor-route
           uri: http://doctor-service:8081
           predicates:
@@ -92,18 +97,26 @@ spring:
 
 auth:
   service:
-    url: http://auth-service:4005 # Ensure this matches your Auth Service's host and port
+    # Ensure this matches your Auth Service's host and port
+    url: http://auth-service:4005
 
-# --- NEW CONFIGURATION FOR SWAGGER UI ---
+---
+
+# NEW CONFIGURATION FOR SWAGGER UI
 springdoc:
   swagger-ui:
-    enabled: true # Ensure Swagger UI is enabled
+    # Ensure Swagger UI is enabled
+    enabled: true
     urls:
       - name: Auth Service
-        url: /api-docs/auth # This is the path your Gateway exposes for Auth Service docs
+        # This is the path your Gateway exposes for Auth Service docs
+        url: /api-docs/auth
       - name: Patient Service
-        url: /api-docs/patients # This is the path your Gateway exposes for Patient Service docs
+        # This is the path your Gateway exposes for Patient Service docs
+        url: /api-docs/patients
       - name: Appointment Service
-        url: /api-docs/appointments # This is the path your Gateway exposes for Appointment Service docs
+        # This is the path your Gateway exposes for Appointment Service docs
+        url: /api-docs/appointments
       - name: Doctor Service
-        url: /api-docs/doctor # This is the path your Gateway exposes for Doctor Service docs
+        # This is the path your Gateway exposes for Doctor Service docs
+        url: /api-docs/doctor
