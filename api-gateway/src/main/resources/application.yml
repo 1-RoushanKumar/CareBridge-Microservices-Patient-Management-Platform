@@ -63,7 +63,8 @@ spring:
           uri: http://auth-service:4005
           predicates:
             # This will catch all /auth/* requests not handled by more specific rules above
-            - Path=/auth/** filters:
+            - Path=/auth/**
+          filters:
             - StripPrefix=1
             # Apply your JWT validation filter here
             - JwtValidation
