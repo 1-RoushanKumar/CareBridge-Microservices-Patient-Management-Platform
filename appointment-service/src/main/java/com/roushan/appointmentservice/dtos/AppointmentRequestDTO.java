@@ -24,6 +24,6 @@ public class AppointmentRequestDTO {
 
     private String status;
 
-    @NotBlank(message = "Doctor slot ID is required for booking") // NEW FIELD
+    @NotBlank(message = "Doctor slot ID is required for booking")
     private String doctorSlotId;
 }

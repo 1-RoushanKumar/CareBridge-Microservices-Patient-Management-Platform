@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/appointmentservice/service/AppointmentService.java
 package com.roushan.appointmentservice.service;
 
 import com.roushan.appointmentservice.dtos.AppointmentRequestDTO;
@@ -10,7 +9,6 @@ import com.roushan.appointmentservice.model.PatientDetails;
 import com.roushan.appointmentservice.model.enums.AppointmentStatus;
 import com.roushan.appointmentservice.repository.AppointmentRepository;
 import com.roushan.appointmentservice.repository.PatientDetailsRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +18,6 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.Map;
@@ -43,7 +40,6 @@ public class AppointmentService {
     public AppointmentResponseDTO bookAppointment(UUID requestingUserId, AppointmentRequestDTO requestDTO, boolean isAdmin) {
         UUID patientIdToBook;
 
-        // Determine the patient ID for the appointment based on user role
         if (isAdmin) {
             if (requestDTO.getPatientId() == null || requestDTO.getPatientId().isEmpty()) {
                 throw new IllegalArgumentException("For ADMIN role, 'patientId' must be provided in the request body to book an appointment.");
@@ -224,16 +220,9 @@ public class AppointmentService {
         }
         UUID newDoctorSlotId = UUID.fromString(requestDTO.getDoctorSlotId());
 
-        // --- RESCHEDULING LOGIC ---
-        // Check if the slot or doctor is actually changing, OR if the time is changing (even if slot/doctor are same)
-        // We always try to 're-book' the new slot to ensure the Doctor Service is aware of the updated appointment time
-        // or the change in slot/doctor, leveraging the enhanced markSlotBooked for idempotency.
         boolean isSlotOrDoctorChanging = !(newDoctorSlotId.equals(oldDoctorSlotId) && newDoctorId.equals(oldDoctorId));
         boolean isTimeChanging = !newAppointmentTime.equals(oldAppointmentDateTime);
 
-        // We will *always* attempt to book the new slot with the existing appointmentId.
-        // The Doctor Service's `markSlotBooked` is now smart enough to handle
-        // re-booking the same slot by the same appointment ID.
         try {
             doctorServiceWebClient.put()
                     .uri(uriBuilder -> uriBuilder.path("/doctors/slots/{slotId}/book")
@@ -254,8 +243,6 @@ public class AppointmentService {
                     .bodyToMono(Object.class)
                     .block();
 
-            // If the new slot booking succeeded (or was a no-op due to same slot/appt ID),
-            // then proceed to unbook the old one IF it's a different slot.
             if (oldDoctorSlotId != null && !oldDoctorSlotId.equals(newDoctorSlotId)) {
                 try {
                     doctorServiceWebClient.put()
@@ -278,8 +265,6 @@ public class AppointmentService {
                             .block();
                 } catch (WebClientResponseException e) {
                     System.err.println("WARNING: Appointment rescheduled, but failed to unbook OLD slot in Doctor Service. Old Slot ID: " + oldDoctorSlotId + ". Error: " + e.getMessage());
-                    // Don't re-throw here. The new slot is booked and local appointment is updated.
-                    // This indicates a potential inconsistency that needs reconciliation in Doctor Service.
                 } catch (Exception e) {
                     System.err.println("WARNING: Error communicating with Doctor Service during OLD slot unbooking. Old Slot ID: " + oldDoctorSlotId + ". Error: " + e.getMessage());
                     // Same as above, don't re-throw.

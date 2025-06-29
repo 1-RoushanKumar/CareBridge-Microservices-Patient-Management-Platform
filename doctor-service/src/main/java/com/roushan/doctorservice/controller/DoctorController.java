@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/controller/DoctorController.java
 package com.roushan.doctorservice.controller;
 
 import com.roushan.doctorservice.dtos.AvailabilityRequestDTO;

@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/dtos/DoctorResponseDTO.java
 package com.roushan.doctorservice.dtos;
 
 import com.roushan.doctorservice.model.DoctorStatus;

@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/dtos/AvailabilityRequestDTO.java
 package com.roushan.doctorservice.dtos;
 
 import jakarta.validation.constraints.FutureOrPresent;

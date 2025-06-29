@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/mapper/DoctorMapper.java
 package com.roushan.doctorservice.mapper;
 
 import com.roushan.doctorservice.dtos.DoctorRequestDTO;

@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/exception/GlobalExceptionHandler.java
 package com.roushan.doctorservice.exception;
 
 import org.springframework.http.HttpStatus;

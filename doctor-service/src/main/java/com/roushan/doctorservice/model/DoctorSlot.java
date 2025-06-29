@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/model/DoctorSlot.java
 package com.roushan.doctorservice.model;
 
 import jakarta.persistence.*;

@@ -33,7 +33,6 @@ public class PatientEventListener {
         } catch (InvalidProtocolBufferException e) {
             log.error("Appointment-Service: Failed to parse PatientEvent Protobuf message from Kafka. Message bytes: {}. Error: {}",
                     bytesToHexString(messageBytes), e.getMessage(), e);
-            // Consider sending to a dead-letter topic for manual inspection
             return;
         }
 
@@ -46,7 +45,7 @@ public class PatientEventListener {
         } catch (IllegalArgumentException e) {
             log.error("Appointment-Service: Invalid patientId UUID format in PatientEvent: '{}'. Event details: {}. Error: {}",
                     patientEvent.getPatientId(), patientEvent.toString(), e.getMessage(), e);
-            return; // Skip processing invalid event
+            return;
         }
 
         try {
@@ -81,18 +80,16 @@ public class PatientEventListener {
                         log.info("Appointment-Service: PatientDetails updated for patientId: {}", patientId);
                     } else {
                         log.warn("Appointment-Service: PATIENT_UPDATED event received for non-existent PatientDetails ID: {}. Cannot update.", patientId);
-                        // Consider creating if update implies upsert semantics, or ignore if strict update
                     }
                     break;
 
                 case "PATIENT_DELETED":
                     if (existingPatientDetails.isPresent()) {
                         patientDetails = existingPatientDetails.get();
-                        patientDetails.setStatus("DELETED"); // Mark as deleted (soft delete)
+                        patientDetails.setStatus("DELETED");
                         patientDetails.setLastUpdated(LocalDateTime.now());
                         patientDetailsRepository.save(patientDetails);
                         log.info("Appointment-Service: PatientDetails marked as DELETED for patientId: {}", patientId);
-                        // If hard delete is desired: patientDetailsRepository.delete(patientDetails);
                     } else {
                         log.warn("Appointment-Service: PATIENT_DELETED event received for non-existent PatientDetails ID: {}. Nothing to delete.", patientId);
                     }
@@ -104,7 +101,6 @@ public class PatientEventListener {
         } catch (Exception e) {
             log.error("Appointment-Service: Error processing PatientEvent for patientId: {}. Event details: {}. Error: {}",
                     patientId, patientEvent.toString(), e.getMessage(), e);
-            // Re-throw if transaction rollback is desired, or handle specific exceptions
             throw new RuntimeException("Error processing patient event.", e);
         }
     }

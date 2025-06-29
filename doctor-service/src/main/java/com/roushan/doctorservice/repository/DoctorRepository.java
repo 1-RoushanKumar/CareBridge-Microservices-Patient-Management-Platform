@@ -1,4 +1,3 @@
-// src/main/java/com/roushan/doctorservice/repository/DoctorRepository.java
 package com.roushan.doctorservice.repository;
 
 import com.roushan.doctorservice.model.Doctor;

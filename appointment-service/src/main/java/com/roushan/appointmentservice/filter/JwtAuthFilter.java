@@ -39,7 +39,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String userEmail = null;
         List<String> roles = null;
         UUID patientId = null;
-        UUID doctorId = null; // New: To extract doctorId
+        UUID doctorId = null;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
@@ -52,12 +52,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             userEmail = jwtUtil.extractUsername(jwt);
             roles = jwtUtil.extractRoles(jwt);
             patientId = jwtUtil.extractPatientId(jwt);
-            doctorId = jwtUtil.extractDoctorId(jwt); // New: Extract doctorId
+            doctorId = jwtUtil.extractDoctorId(jwt);
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // In a real application, you might fetch UserDetails from a UserDetailsService here
-                // and then validate the token against those UserDetails.
-                // For simplicity, we are just validating the token structurally and checking expiration.
                 if (jwtUtil.validateToken(jwt)) {
                     List<SimpleGrantedAuthority> authorities = roles.stream()
                             .map(SimpleGrantedAuthority::new)
@@ -75,14 +72,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                    // Set attributes for downstream use in controllers/services
                     request.setAttribute("userEmail", userEmail);
                     request.setAttribute("userRoles", roles);
                     if (patientId != null) {
                         request.setAttribute("patientId", patientId);
                     }
                     if (doctorId != null) {
-                        request.setAttribute("doctorId", doctorId); // New: Set doctorId
+                        request.setAttribute("doctorId", doctorId);
                     }
                     logger.debug("Successfully authenticated user: {} with roles: {}", userEmail, roles);
                 } else {
@@ -91,14 +87,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         } catch (io.jsonwebtoken.JwtException e) {
             logger.warn("JWT validation failed: {}", e.getMessage());
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // Explicitly set status
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid or expired token.");
-            return; // Stop processing and return immediately
+            return;
         } catch (Exception e) {
             logger.error("An unexpected error occurred during JWT authentication: {}", e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // Explicitly set status
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().write("Authentication processing error.");
-            return; // Stop processing and return immediately
+            return;
         }
 
         filterChain.doFilter(request, response);

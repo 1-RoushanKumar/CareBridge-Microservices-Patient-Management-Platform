@@ -21,13 +21,10 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
-    public AppointmentController(AppointmentService appointmentService) { // @Autowired is optional for constructor injection
+    public AppointmentController(AppointmentService appointmentService) {
         this.appointmentService = appointmentService;
     }
 
-    /**
-     * Helper method to determine if the current user has ADMIN role.
-     */
     private boolean isAdminUser() {
         return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -38,7 +35,7 @@ public class AppointmentController {
     @PreAuthorize("hasRole('ROLE_ADMIN') or (hasRole('ROLE_PATIENT') and #requestDTO.patientId == null) or (hasRole('ROLE_PATIENT') and #requestDTO.patientId != null and #requestDTO.patientId.equals(@jwtUtil.extractPatientId(#request.getHeader('Authorization').substring(7)).toString()))")
     public ResponseEntity<AppointmentResponseDTO> bookAppointment(
             @Valid @RequestBody AppointmentRequestDTO requestDTO,
-            HttpServletRequest request // Keep HttpServletRequest to get attributes set by filter
+            HttpServletRequest request
     ) {
         UUID patientIdFromToken = (UUID) request.getAttribute("patientId");
         boolean isAdmin = isAdminUser();
