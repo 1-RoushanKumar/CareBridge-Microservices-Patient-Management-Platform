@@ -4,16 +4,16 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "firstName": "Saurav",
+  "firstName": "Aditya",
   "lastName": "Kumar",
   "specialization": "Cardiology",
-  "email": "saurav@g.com",
-  "phoneNumber": "125-456-7880",
-  "licenseNumber": "MD11341",
-  "experienceYears": 12,
+  "email": "aditya@g.com",
+  "phoneNumber": "127-456-7880",
+  "licenseNumber": "MD13341",
+  "experienceYears": 11,
   "clinicAddress": "Patna, Bihar",
   "status": "ACTIVE",
-  "consultationFee": 15500.50
+  "consultationFee": 14000.50
 }
 
 ###

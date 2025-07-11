@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package appointment.events;
+
+option java_multiple_files = true;
+
+message AppointmentRescheduledEvent {
+  string appointmentId = 1;
+  string patientId = 2;
+  string doctorId = 3; // New doctor ID if changed, or original
+  string oldAppointmentDateTime = 4; // ISO 8601 string of original time
+  string newAppointmentDateTime = 5; // ISO 8601 string of new time
+  string oldDoctorId = 6; // Original doctor ID if changed
+  string oldDoctorSlotId = 7; // Original slot ID if changed
+  string newDoctorSlotId = 8; // New slot ID
+  string status = 9; // Should be "RESCHEDULED"
+  string patientName = 10;
+  string patientEmail = 11;
+  string oldDoctorName = 12; // <--- ADD THIS FIELD
+  string doctorName = 13; // New doctor name if changed, or original (now tag 13)
+  string doctorSpecialization = 14; // (now tag 14)
+  double estimatedFeeAmount = 15; // (now tag 15)
+  string currency = 16; // (now tag 16)
+  string eventType = 17; // (now tag 17)
+  string timestamp = 18; // (now tag 18)
+}

@@ -1,12 +1,12 @@
 ### GET request to example server
-POST http://localhost:4004/api/doctors/1851c36c-c85d-445d-8497-a97619f7e9e9/slots
+POST http://localhost:4004/api/doctors/0cfc2951-1d3c-4778-8c2f-5b09d9a45d3c/slots
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "doctorId": "1851c36c-c85d-445d-8497-a97619f7e9e9",
-  "startTime": "2025-07-19T10:00:00",
-  "endTime": "2025-07-20T14:30:00"
+  "doctorId": "0cfc2951-1d3c-4778-8c2f-5b09d9a45d3c",
+  "startTime": "2025-07-22T10:00:00",
+  "endTime": "2025-07-23T14:30:00"
 }
 
 ###

@@ -1,6 +1,8 @@
 package com.roushan.appointmentservice.service;
 
 import appointment.events.AppointmentBookedEvent;
+import appointment.events.AppointmentCanceledEvent;
+import appointment.events.AppointmentRescheduledEvent;
 import com.roushan.appointmentservice.dtos.AppointmentRequestDTO;
 import com.roushan.appointmentservice.dtos.AppointmentResponseDTO;
 import com.roushan.appointmentservice.exception.ResourceNotFoundException;
@@ -228,6 +230,23 @@ public class AppointmentService {
             throw new IllegalArgumentException("Appointments cannot be canceled within 1 hour of the scheduled time.");
         }
 
+        // Fetch patient and doctor details BEFORE updating the appointment status to CANCELED
+        // These details are needed for the Kafka event.
+        PatientDetails patient = patientDetailsRepository.findById(appointment.getPatientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Patient for appointment ID " + appointmentId + " not found."));
+
+        DoctorResponseDTO doctorDetails = null;
+        try {
+            doctorDetails = doctorServiceWebClient.get()
+                    .uri("/doctors/{id}", appointment.getDoctorId())
+                    .retrieve()
+                    .bodyToMono(DoctorResponseDTO.class)
+                    .block();
+        } catch (Exception e) {
+            logger.warn("Could not fetch doctor details for canceled appointment {}: {}", appointmentId, e.getMessage());
+            // Log and continue, as the core cancellation can still proceed.
+        }
+
         appointment.setStatus(AppointmentStatus.CANCELED);
         Appointment updatedAppointment = appointmentRepository.save(appointment);
 
@@ -257,6 +276,43 @@ public class AppointmentService {
                 System.err.println("WARNING: Error communicating with Doctor Service during slot unbooking. Slot ID: " + updatedAppointment.getDoctorSlotId() + ". Error: " + e.getMessage());
             }
         }
+
+        try {
+            String topicName = "appointment-canceled-events"; // Define this in application.properties as well
+
+            AppointmentCanceledEvent.Builder eventBuilder = AppointmentCanceledEvent.newBuilder()
+                    .setAppointmentId(updatedAppointment.getId().toString())
+                    .setPatientId(updatedAppointment.getPatientId().toString())
+                    .setDoctorId(updatedAppointment.getDoctorId().toString())
+                    .setAppointmentDateTime(updatedAppointment.getAppointmentDateTime().toString())
+                    .setStatus(updatedAppointment.getStatus().name())
+                    .setEventType("APPOINTMENT_CANCELED")
+                    .setTimestamp(LocalDateTime.now().toString());
+
+            if (patient != null) {
+                eventBuilder.setPatientName(patient.getName())
+                        .setPatientEmail(patient.getEmail());
+            }
+            if (doctorDetails != null) {
+                eventBuilder.setDoctorName(doctorDetails.getFirstName() + " " + doctorDetails.getLastName())
+                        .setDoctorSpecialization(doctorDetails.getSpecialization())
+                        .setEstimatedFeeAmount(doctorDetails.getConsultationFee())
+                        .setCurrency("INR"); // Assuming INR from doctorDetails
+            } else {
+                eventBuilder.setEstimatedFeeAmount(0.0) // Default if doctor details not available
+                        .setCurrency("UNKNOWN");
+            }
+            // Add a cancellation reason if you have it in your DTO or logic
+            eventBuilder.setCancellationReason("Patient request or Admin cancellation"); // Example hardcoded reason
+
+            kafkaTemplate.send(topicName, updatedAppointment.getId().toString(), eventBuilder.build().toByteArray());
+            logger.info("Published Protobuf AppointmentCanceledEvent for appointmentId: {}", updatedAppointment.getId());
+
+        } catch (Exception e) {
+            logger.error("Failed to publish Protobuf AppointmentCanceledEvent for appointmentId {}: {}", updatedAppointment.getId(), e.getMessage(), e);
+        }
+        // --- END Publish AppointmentCanceledEvent ---
+
         return AppointmentMapper.toDTO(updatedAppointment);
     }
 
@@ -278,6 +334,7 @@ public class AppointmentService {
             throw new IllegalArgumentException("New appointment time cannot be in the past or too soon. Please provide a future time at least 30 minutes from now.");
         }
 
+        // Store old details BEFORE modification for the event payload
         UUID oldDoctorId = appointment.getDoctorId();
         UUID oldDoctorSlotId = appointment.getDoctorSlotId();
         LocalDateTime oldAppointmentDateTime = appointment.getAppointmentDateTime();
@@ -300,6 +357,36 @@ public class AppointmentService {
 
         boolean isSlotOrDoctorChanging = !(newDoctorSlotId.equals(oldDoctorSlotId) && newDoctorId.equals(oldDoctorId));
         boolean isTimeChanging = !newAppointmentTime.equals(oldAppointmentDateTime);
+
+        // Fetch patient and doctor details for the event payload
+        PatientDetails patient = patientDetailsRepository.findById(appointment.getPatientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Patient for appointment ID " + appointmentId + " not found."));
+
+        // NEW: Fetch OLD Doctor Details for the event payload
+        DoctorResponseDTO oldDoctorDetails = null;
+        try {
+            oldDoctorDetails = doctorServiceWebClient.get()
+                    .uri("/doctors/{id}", oldDoctorId)
+                    .retrieve()
+                    .bodyToMono(DoctorResponseDTO.class)
+                    .block();
+        } catch (Exception e) {
+            logger.warn("Could not fetch old doctor details for rescheduled appointment {}: {}", appointmentId, e.getMessage());
+            // Log and continue, as the core reschedule can still proceed.
+        }
+
+        DoctorResponseDTO newDoctorDetails = null; // Doctor details for the NEW doctor/slot
+        try {
+            newDoctorDetails = doctorServiceWebClient.get()
+                    .uri("/doctors/{id}", newDoctorId)
+                    .retrieve()
+                    .bodyToMono(DoctorResponseDTO.class)
+                    .block();
+        } catch (Exception e) {
+            logger.warn("Could not fetch new doctor details for rescheduled appointment {}: {}", appointmentId, e.getMessage());
+            // Log and continue, as the core reschedule can still proceed.
+        }
+
 
         try {
             doctorServiceWebClient.put()
@@ -359,8 +446,58 @@ public class AppointmentService {
         appointment.setStatus(AppointmentStatus.RESCHEDULED);
 
         Appointment updatedAppointment = appointmentRepository.save(appointment);
+
+        // --- NEW: Publish AppointmentRescheduledEvent to Kafka ---
+        try {
+            String topicName = "appointment-rescheduled-events"; // Define this in application.properties
+
+            AppointmentRescheduledEvent.Builder eventBuilder = AppointmentRescheduledEvent.newBuilder()
+                    .setAppointmentId(updatedAppointment.getId().toString())
+                    .setPatientId(updatedAppointment.getPatientId().toString())
+                    .setDoctorId(updatedAppointment.getDoctorId().toString())
+                    .setOldAppointmentDateTime(oldAppointmentDateTime.toString())
+                    .setNewAppointmentDateTime(updatedAppointment.getAppointmentDateTime().toString())
+                    .setOldDoctorId(oldDoctorId.toString())
+                    .setOldDoctorSlotId(oldDoctorSlotId.toString())
+                    .setNewDoctorSlotId(updatedAppointment.getDoctorSlotId().toString())
+                    .setStatus(updatedAppointment.getStatus().name())
+                    .setEventType("APPOINTMENT_RESCHEDULED")
+                    .setTimestamp(LocalDateTime.now().toString());
+
+            if (patient != null) {
+                eventBuilder.setPatientName(patient.getName())
+                        .setPatientEmail(patient.getEmail());
+            }
+            // Populate old doctor name if available
+            if (oldDoctorDetails != null) {
+                eventBuilder.setOldDoctorName(oldDoctorDetails.getFirstName() + " " + oldDoctorDetails.getLastName());
+            } else {
+                eventBuilder.setOldDoctorName("Unknown Doctor"); // Default if old doctor details not fetched
+            }
+
+            if (newDoctorDetails != null) {
+                eventBuilder.setDoctorName(newDoctorDetails.getFirstName() + " " + newDoctorDetails.getLastName())
+                        .setDoctorSpecialization(newDoctorDetails.getSpecialization())
+                        .setEstimatedFeeAmount(newDoctorDetails.getConsultationFee())
+                        .setCurrency("INR");
+            } else {
+                eventBuilder.setDoctorName("Unknown Doctor") // Default if new doctor details not fetched
+                        .setDoctorSpecialization("Unknown Specialization")
+                        .setEstimatedFeeAmount(0.0)
+                        .setCurrency("UNKNOWN");
+            }
+
+            kafkaTemplate.send(topicName, updatedAppointment.getId().toString(), eventBuilder.build().toByteArray());
+            logger.info("Published Protobuf AppointmentRescheduledEvent for appointmentId: {}", updatedAppointment.getId());
+
+        } catch (Exception e) {
+            logger.error("Failed to publish Protobuf AppointmentRescheduledEvent for appointmentId {}: {}", updatedAppointment.getId(), e.getMessage(), e);
+        }
+        // --- END Publish AppointmentRescheduledEvent ---
+
         return AppointmentMapper.toDTO(updatedAppointment);
     }
+
 
     @Transactional
     public AppointmentResponseDTO completeAppointment(UUID appointmentId, UUID requestingUserId, boolean isAdmin) {

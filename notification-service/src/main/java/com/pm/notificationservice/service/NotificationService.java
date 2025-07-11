@@ -16,12 +16,11 @@ import java.util.UUID;
 public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
-    private final JavaMailSender javaMailSender; // NEW: Inject JavaMailSender
+    private final JavaMailSender javaMailSender;
 
-    @Value("${notification.email.from:no-reply@patient-management.com}") // NEW: Get 'from' address from properties
+    @Value("${notification.email.from:no-reply@patient-management.com}")
     private String senderEmail;
 
-    // Modified Constructor to inject JavaMailSender
     public NotificationService(JavaMailSender javaMailSender) {
         this.javaMailSender = javaMailSender;
     }
@@ -34,7 +33,7 @@ public class NotificationService {
         String subject = "Appointment Confirmation - ID " + appointmentId.toString();
 
         String notificationMessage = String.format(
-                "Dear %s,\n\n" + // Added an extra newline for better email formatting
+                "Dear %s,\n\n" +
                 "Your appointment (ID: %s) has been successfully booked!\n\n" +
                 "**Appointment Details:**\n" +
                 "- Doctor: Dr. %s (%s)\n" +
@@ -53,26 +52,98 @@ public class NotificationService {
         log.info("Body:\n{}", notificationMessage);
         log.info("-----------------------------------------------------");
 
-        // NEW: Actual email sending logic
+        sendEmail(patientEmail, subject, notificationMessage);
+    }
+
+    // NEW METHOD FOR CANCELED APPOINTMENTS
+    public void sendAppointmentCancellationNotification(
+            UUID appointmentId, UUID patientId, String patientName, String patientEmail,
+            String doctorName, String doctorSpecialization, LocalDateTime originalAppointmentDateTime,
+            double estimatedFeeAmount, String currency, String cancellationReason) {
+
+        String subject = "Appointment Canceled - ID " + appointmentId.toString();
+
+        String notificationMessage = String.format(
+                "Dear %s,\n\n" +
+                "Your appointment (ID: %s) originally scheduled with Dr. %s (%s) on %s has been **canceled**.\n\n" +
+                "Reason for cancellation: %s\n\n" +
+                "If you wish to re-book, please visit our portal or contact support.\n\n" +
+                "Regards,\n" +
+                "Patient Management Team",
+                patientName, appointmentId.toString(), doctorName, doctorSpecialization,
+                originalAppointmentDateTime.toString(), cancellationReason
+        );
+
+        log.info("--- Preparing Appointment Cancellation Notification ---");
+        log.info("To: {} ({})", patientName, patientEmail);
+        log.info("Subject: {}", subject);
+        log.info("Body:\n{}", notificationMessage);
+        log.info("-----------------------------------------------------");
+
+        sendEmail(patientEmail, subject, notificationMessage);
+    }
+
+    // NEW METHOD FOR RESCHEDULED APPOINTMENTS
+    public void sendAppointmentRescheduleNotification(
+            UUID appointmentId, UUID patientId, String patientName, String patientEmail,
+            String oldAppointmentDateTime, String newAppointmentDateTime,
+            String oldDoctorName, String newDoctorName, String newDoctorSpecialization,
+            double estimatedFeeAmount, String currency) {
+
+        String subject = "Appointment Rescheduled - ID " + appointmentId.toString();
+
+        String doctorChangeMessage = "";
+        if (!oldDoctorName.equals(newDoctorName)) {
+            doctorChangeMessage = String.format("- Doctor changed from Dr. %s to Dr. %s (%s)\n",
+                    oldDoctorName, newDoctorName, newDoctorSpecialization);
+        }
+
+        String notificationMessage = String.format(
+                "Dear %s,\n\n" +
+                "Your appointment (ID: %s) has been **rescheduled**!\n\n" +
+                "**Original Details:**\n" +
+                "- Time: %s\n" +
+                "%s" + // Doctor change message, if any
+                "**New Details:**\n" +
+                "- Doctor: Dr. %s (%s)\n" +
+                "- Time: %s\n" +
+                "- Estimated Fee: %.2f %s\n\n" +
+                "Please make a note of the new details. We look forward to seeing you.\n\n" +
+                "Regards,\n" +
+                "Patient Management Team",
+                patientName, appointmentId.toString(),
+                oldAppointmentDateTime,
+                doctorChangeMessage,
+                newDoctorName, newDoctorSpecialization, newAppointmentDateTime,
+                estimatedFeeAmount, currency
+        );
+
+        log.info("--- Preparing Appointment Reschedule Notification ---");
+        log.info("To: {} ({})", patientName, patientEmail);
+        log.info("Subject: {}", subject);
+        log.info("Body:\n{}", notificationMessage);
+        log.info("-----------------------------------------------------");
+
+        sendEmail(patientEmail, subject, notificationMessage);
+    }
+
+    // Helper method to consolidate email sending logic
+    private void sendEmail(String recipientEmail, String subject, String content) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true); // true for multipart message (e.g., HTML, attachments)
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
             helper.setFrom(senderEmail);
-            helper.setTo(patientEmail);
+            helper.setTo(recipientEmail);
             helper.setSubject(subject);
-            // Use 'true' for HTML content if you want to send rich text.
-            // For now, it's plain text, but if you format with HTML tags, set true.
-            helper.setText(notificationMessage, false); // false for plain text
+            helper.setText(content, false); // Assuming plain text for now
 
             javaMailSender.send(message);
-            log.info("Email sent successfully to {} for appointment ID {}", patientEmail, appointmentId);
+            log.info("Email sent successfully to {} with subject: {}", recipientEmail, subject);
         } catch (MessagingException e) {
-            log.error("Failed to send email to {} for appointment ID {}: {}", patientEmail, appointmentId, e.getMessage(), e);
-            // Handle specific email sending failures here (e.g., retry, dead-letter queue for notifications)
+            log.error("Failed to send email to {} with subject {}: {}", recipientEmail, subject, e.getMessage(), e);
         } catch (Exception e) {
-            log.error("An unexpected error occurred while sending email for appointment ID {}: {}", appointmentId, e.getMessage(), e);
+            log.error("An unexpected error occurred while sending email to {} with subject {}: {}", recipientEmail, subject, e.getMessage(), e);
         }
     }
-    // You might add other notification types here (e.g., cancellation, payment reminder)
 }

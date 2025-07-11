@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package appointment.events;
+
+option java_multiple_files = true;
+
+message AppointmentCanceledEvent {
+  string appointmentId = 1;
+  string patientId = 2;
+  string doctorId = 3;
+  string appointmentDateTime = 4; // ISO 8601 string of original scheduled time
+  string status = 5; // Should be "CANCELED"
+  string cancellationReason = 6; // E.g., "PATIENT_REQUEST", "DOCTOR_CANCELED"
+  string patientName = 7;
+  string patientEmail = 8;
+  string doctorName = 9;
+  string doctorSpecialization = 10;
+  double estimatedFeeAmount = 11; // Original estimated fee
+  string currency = 12;
+  string eventType = 13; // E.g., "APPOINTMENT_CANCELED"
+  string timestamp = 14;
+}
