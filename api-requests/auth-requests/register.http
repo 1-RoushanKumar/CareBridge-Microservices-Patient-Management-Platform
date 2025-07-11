@@ -3,8 +3,8 @@ POST http://localhost:4004/auth/register
 Content-Type: application/json
 
 {
-  "email": "patient_X@example.com",
+  "email": "naruto@gmail.com",
   "password": "password123",
-  "role": "PATIENT"
+  "role": "ADMIN"
 }
 ###
