@@ -14,3 +14,16 @@ message BillingAccountEvent {
   string eventType = 6;      // E.g., "BILLING_ACCOUNT_CREATED", "BILLING_ACCOUNT_UPDATED", "BILLING_ACCOUNT_DELETED", "PAYMENT_RECEIVED"
   string timestamp = 7;      // When the event occurred (ISO 8601 string from LocalDateTime)
 }
+
+// NEW MESSAGE: PaymentReceivedEvent
+message PaymentReceivedEvent {
+  string transactionId = 1;      // UUID of the payment transaction
+  string billId = 2;             // UUID of the bill that was paid
+  string billingAccountId = 3;   // UUID of the billing account
+  string patientId = 4;          // UUID of the patient (denormalized for convenience)
+  double amount = 5;
+  string currency = 6;
+  string paymentMethod = 7;
+  string eventType = 8;          // E.g., "PAYMENT_RECEIVED", "PAYMENT_FAILED"
+  string timestamp = 9;
+}

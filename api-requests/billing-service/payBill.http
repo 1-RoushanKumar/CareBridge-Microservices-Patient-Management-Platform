@@ -1,0 +1,8 @@
+### GET request to example server
+POST http://localhost:4001/billing/bills/aa586222-3155-48ec-97ce-9bc36dda463e/pay
+Content-Type: application/json
+
+{
+  "paymentMethod": "UPI"
+}
+###

@@ -1,6 +1,7 @@
 package com.pm.billingservice.kafka;
 
 import billing.events.BillingAccountEvent; // Import the new Protobuf DTO
+import billing.events.PaymentReceivedEvent;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,9 @@ public class BillingEventProducer {
     @Value("${kafka.topics.billing-account-events:billing-account-events}") // Define new topic name
     private String billingAccountTopic;
 
+    @Value("${kafka.topics.payment-events:payment-events}") // NEW TOPIC for payment events
+    private String paymentEventsTopic;
+
     public BillingEventProducer(KafkaTemplate<String, byte[]> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
@@ -30,6 +34,18 @@ public class BillingEventProducer {
         } catch (Exception e) {
             log.error("Error sending BillingAccountEvent for account {}: {}", event.getAccountId(), e.getMessage(), e);
             // Consider robust error handling (e.g., retry, DLQ)
+        }
+    }
+
+    // NEW METHOD: Send PaymentReceivedEvent
+    public void sendPaymentReceivedEvent(PaymentReceivedEvent event) {
+        try {
+            // Use billId or patientId as key for partitioning
+            kafkaTemplate.send(paymentEventsTopic, event.getBillId(), event.toByteArray());
+            log.info("Produced Kafka message to topic '{}' for payment transaction {}: {}",
+                    paymentEventsTopic, event.getTransactionId(), event.getEventType());
+        } catch (Exception e) {
+            log.error("Error sending PaymentReceivedEvent for transaction {}: {}", event.getTransactionId(), e.getMessage(), e);
         }
     }
 }

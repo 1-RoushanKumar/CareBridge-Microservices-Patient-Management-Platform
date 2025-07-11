@@ -6,8 +6,8 @@ Content-Type: application/json
 {
   "patientId": "0fb58194-f79f-41ca-8838-953004ee8ce8",
   "doctorId": "55e29e3b-9d36-49ba-8637-25b2850edc57",
-  "appointmentDateTime": "2025-07-14T11:30",
+  "appointmentDateTime": "2025-07-18T11:30",
   "status": "Booked by admin",
-  "doctorSlotId": "792fd50f-ea95-4e23-9444-92268c21581a"
+  "doctorSlotId": "93635496-2cb6-4328-a96a-b9900f391020"
 }
 ###
