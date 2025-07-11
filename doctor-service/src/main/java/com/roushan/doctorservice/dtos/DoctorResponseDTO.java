@@ -20,4 +20,5 @@ public class DoctorResponseDTO {
     private DoctorStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private double consultationFee;
 }

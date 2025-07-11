@@ -17,6 +17,7 @@ public class DoctorMapper {
         doctor.setExperienceYears(dto.getExperienceYears());
         doctor.setClinicAddress(dto.getClinicAddress());
         doctor.setStatus(dto.getStatus());
+        doctor.setConsultationFee(dto.getConsultationFee());
         return doctor;
     }
 
@@ -34,6 +35,7 @@ public class DoctorMapper {
         dto.setStatus(doctor.getStatus());
         dto.setCreatedAt(doctor.getCreatedAt());
         dto.setUpdatedAt(doctor.getUpdatedAt());
+        dto.setConsultationFee(doctor.getConsultationFee());
         return dto;
     }
 }

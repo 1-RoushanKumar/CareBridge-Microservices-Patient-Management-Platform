@@ -53,6 +53,9 @@ public class Doctor {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Column(nullable = false) // Assuming a doctor must have a fee
+    private double consultationFee;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

@@ -12,7 +12,8 @@ Content-Type: application/json
   "licenseNumber": "MD11341",
   "experienceYears": 12,
   "clinicAddress": "Patna, Bihar",
-  "status": "ACTIVE"
+  "status": "ACTIVE",
+  "consultationFee": 15500.50
 }
 
 ###

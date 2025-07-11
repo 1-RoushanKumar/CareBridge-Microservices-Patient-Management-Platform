@@ -131,4 +131,12 @@ public class DoctorController {
         DoctorSlotDTO responseDTO = doctorService.markSlotUnbooked(slotId, doctorId, appointmentId);
         return ResponseEntity.ok(responseDTO);
     }
+
+    @Operation(summary = "Get a doctor's consultation fee by ID")
+    @GetMapping("/{doctorId}/fee")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SERVICE')") // Define 'ROLE_SERVICE' for internal calls
+    public ResponseEntity<Double> getDoctorFee(@PathVariable UUID doctorId) {
+        double fee = doctorService.getDoctorConsultationFee(doctorId);
+        return ResponseEntity.ok(fee);
+    }
 }

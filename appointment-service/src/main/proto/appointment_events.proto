@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package appointment.events; // New package for appointment events
+
+option java_multiple_files = true;
+
+message AppointmentCompletedEvent {
+  string appointmentId = 1;
+  string patientId = 2;
+  string doctorId = 3;
+  string completionDateTime = 4; // ISO 8601 string from LocalDateTime
+  double baseFeeAmount = 5;      // Use double for monetary values
+  string currency = 6;           // e.g., "INR", "USD"
+  // Add more fields here if needed for detailed billing (e.g., service codes, quantities)
+}

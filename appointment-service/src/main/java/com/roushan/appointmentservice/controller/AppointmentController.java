@@ -102,4 +102,20 @@ public class AppointmentController {
         AppointmentResponseDTO dto = appointmentService.getAppointmentById(appointmentId, patientIdFromToken, doctorIdFromToken, isAdmin);
         return ResponseEntity.ok(dto);
     }
+
+    @Operation(summary = "Mark an existing appointment as completed")
+    @PutMapping("/{appointmentId}/complete")
+    // Only Admin or the associated Doctor can complete an appointment
+    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_DOCTOR')")
+    public ResponseEntity<AppointmentResponseDTO> completeAppointment(
+            @PathVariable UUID appointmentId,
+            HttpServletRequest request) {
+
+        UUID doctorIdFromToken = (UUID) request.getAttribute("doctorId"); // Get doctorId from token
+        boolean isAdmin = isAdminUser();
+
+        // Pass doctorIdFromToken to the service for internal authorization logic
+        AppointmentResponseDTO dto = appointmentService.completeAppointment(appointmentId, doctorIdFromToken, isAdmin);
+        return ResponseEntity.ok(dto);
+    }
 }

@@ -9,12 +9,17 @@ import com.roushan.appointmentservice.model.PatientDetails;
 import com.roushan.appointmentservice.model.enums.AppointmentStatus;
 import com.roushan.appointmentservice.repository.AppointmentRepository;
 import com.roushan.appointmentservice.repository.PatientDetailsRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
+import appointment.events.AppointmentCompletedEvent;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,14 +31,21 @@ import java.util.function.Function;
 @Service
 public class AppointmentService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AppointmentService.class); // NEW: Logger
+
     private final AppointmentRepository appointmentRepository;
     private final PatientDetailsRepository patientDetailsRepository;
     private final WebClient doctorServiceWebClient;
+    private final KafkaTemplate<String, byte[]> kafkaTemplate; // NEW: KafkaTemplate
 
-    public AppointmentService(AppointmentRepository appointmentRepository, PatientDetailsRepository patientDetailsRepository, WebClient doctorServiceWebClient) {
+    public AppointmentService(AppointmentRepository appointmentRepository,
+                              PatientDetailsRepository patientDetailsRepository,
+                              WebClient doctorServiceWebClient,
+                              KafkaTemplate<String, byte[]> kafkaTemplate) { // NEW: Inject KafkaTemplate
         this.appointmentRepository = appointmentRepository;
         this.patientDetailsRepository = patientDetailsRepository;
         this.doctorServiceWebClient = doctorServiceWebClient;
+        this.kafkaTemplate = kafkaTemplate; // NEW: Assign KafkaTemplate
     }
 
     @Transactional
@@ -56,15 +68,13 @@ public class AppointmentService {
             patientIdToBook = requestingUserId;
         }
 
-        // Validate patient existence and status
         PatientDetails patient = patientDetailsRepository.findById(patientIdToBook)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient with ID '" + patientIdToBook + "' not found in local records. Appointment cannot be booked."));
 
-        if (!"ACTIVE".equalsIgnoreCase(patient.getStatus())) {
+        if (!"ACTIVE" .equalsIgnoreCase(patient.getStatus())) {
             throw new IllegalArgumentException("Patient with ID '" + patientIdToBook + "' is currently '" + patient.getStatus() + "'. Only ACTIVE patients can book appointments.");
         }
 
-        // Validate appointment time
         LocalDateTime appointmentTime = LocalDateTime.parse(requestDTO.getAppointmentDateTime());
         if (appointmentTime.isBefore(LocalDateTime.now().plusMinutes(15))) {
             throw new IllegalArgumentException("Appointment date and time cannot be in the past or too soon. Please provide a future time at least 15 minutes from now.");
@@ -153,7 +163,7 @@ public class AppointmentService {
         if (updatedAppointment.getDoctorId() != null && updatedAppointment.getDoctorSlotId() != null) {
             try {
                 doctorServiceWebClient.put()
-                        .uri(uriBuilder -> uriBuilder.path("/doctors/slots/{slotId}/unbook") // Changed path for clarity/consistency
+                        .uri(uriBuilder -> uriBuilder.path("/doctors/slots/{slotId}/unbook")
                                 .queryParam("doctorId", updatedAppointment.getDoctorId())
                                 .queryParam("appointmentId", updatedAppointment.getId())
                                 .build(updatedAppointment.getDoctorSlotId()))
@@ -184,19 +194,16 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
 
-        // Authorization check
         if (!isAdmin && !appointment.getPatientId().equals(requestingUserId)) {
             throw new SecurityException("You are not authorized to reschedule this appointment. Only the patient who booked it or an ADMIN can reschedule.");
         }
 
-        // Business logic for rescheduling
         if (appointment.getStatus() == AppointmentStatus.COMPLETED || appointment.getStatus() == AppointmentStatus.CANCELED) {
             throw new IllegalArgumentException("Cannot reschedule an appointment that is already " + appointment.getStatus().name().toLowerCase() + ".");
         }
 
-        // Validate new appointment time
         LocalDateTime newAppointmentTime = LocalDateTime.parse(requestDTO.getAppointmentDateTime());
-        if (newAppointmentTime.isBefore(LocalDateTime.now().plusMinutes(30))) { // Example: New time must be at least 30 mins in future
+        if (newAppointmentTime.isBefore(LocalDateTime.now().plusMinutes(30))) {
             throw new IllegalArgumentException("New appointment time cannot be in the past or too soon. Please provide a future time at least 30 minutes from now.");
         }
 
@@ -212,7 +219,7 @@ public class AppointmentService {
                 throw new IllegalArgumentException("Invalid Doctor ID format for reschedule. Must be a valid UUID.", e);
             }
         } else {
-            newDoctorId = oldDoctorId; // If new doctor not specified, keep the same doctor
+            newDoctorId = oldDoctorId;
         }
 
         if (requestDTO.getDoctorSlotId() == null) {
@@ -227,7 +234,7 @@ public class AppointmentService {
             doctorServiceWebClient.put()
                     .uri(uriBuilder -> uriBuilder.path("/doctors/slots/{slotId}/book")
                             .queryParam("doctorId", newDoctorId)
-                            .queryParam("appointmentId", appointmentId) // Pass existing appointment ID
+                            .queryParam("appointmentId", appointmentId)
                             .build(newDoctorSlotId))
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, response ->
@@ -267,26 +274,106 @@ public class AppointmentService {
                     System.err.println("WARNING: Appointment rescheduled, but failed to unbook OLD slot in Doctor Service. Old Slot ID: " + oldDoctorSlotId + ". Error: " + e.getMessage());
                 } catch (Exception e) {
                     System.err.println("WARNING: Error communicating with Doctor Service during OLD slot unbooking. Old Slot ID: " + oldDoctorSlotId + ". Error: " + e.getMessage());
-                    // Same as above, don't re-throw.
                 }
             }
         } catch (WebClientResponseException e) {
-            // This catches errors from the *new slot booking* attempt
             throw new IllegalArgumentException("Failed to book new doctor slot for reschedule: " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
-            // This catches general communication errors for the *new slot booking* attempt
             throw new RuntimeException("Error communicating with Doctor Service during new slot booking for reschedule: " + e.getMessage(), e);
         }
 
-
-        // Update appointment details in your service
         appointment.setAppointmentDateTime(newAppointmentTime);
         appointment.setDoctorId(newDoctorId);
         appointment.setDoctorSlotId(newDoctorSlotId);
-        appointment.setStatus(AppointmentStatus.RESCHEDULED); // Set to RESCHEDULED status
+        appointment.setStatus(AppointmentStatus.RESCHEDULED);
 
         Appointment updatedAppointment = appointmentRepository.save(appointment);
         return AppointmentMapper.toDTO(updatedAppointment);
+    }
+
+    // --- NEW METHOD: COMPLETE APPOINTMENT ---
+    @Transactional
+    public AppointmentResponseDTO completeAppointment(UUID appointmentId, UUID requestingUserId, boolean isAdmin) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
+
+        // Authorization: Only Admin or the Doctor associated with the appointment can mark it complete
+        if (!isAdmin && (requestingUserId == null || !appointment.getDoctorId().equals(requestingUserId))) {
+            throw new SecurityException("You are not authorized to mark this appointment as complete. Only the associated doctor or an ADMIN can do so.");
+        }
+
+        // Validate current status
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+            throw new IllegalArgumentException("Appointment with ID '" + appointmentId + "' is already completed.");
+        }
+        if (appointment.getStatus() == AppointmentStatus.CANCELED || appointment.getStatus() == AppointmentStatus.FAILED) {
+            throw new IllegalArgumentException("Cannot complete a " + appointment.getStatus().name().toLowerCase() + " appointment.");
+        }
+        // Optionally: Prevent completing future appointments
+        if (appointment.getAppointmentDateTime().isAfter(LocalDateTime.now().plusHours(1))) { // Allow slight future for immediate completion scenarios
+            logger.warn("Attempt to complete future appointment: {}", appointmentId);
+            // throw new IllegalArgumentException("Cannot complete an appointment scheduled for the future.");
+        }
+
+        double consultationFee;
+        try {
+            consultationFee = doctorServiceWebClient.get()
+                    .uri("/doctors/{doctorId}/fee", appointment.getDoctorId())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, response -> {
+                        // Handle 404 specifically if doctor not found or fee not configured
+                        if (response.statusCode() == HttpStatus.NOT_FOUND) {
+                            return Mono.error(new ResourceNotFoundException("Doctor not found or consultation fee not configured for ID: " + appointment.getDoctorId()));
+                        }
+                        return response.bodyToMono(String.class)
+                                .flatMap(errorBody -> Mono.error(new RuntimeException("Doctor Service error getting fee for doctor " + appointment.getDoctorId() + ": " + errorBody)));
+                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, response ->
+                            Mono.error(new RuntimeException("Doctor Service internal error getting fee for doctor " + appointment.getDoctorId()))
+                    )
+                    .bodyToMono(Double.class) // Expecting a Double response
+                    .block(); // Block to get the result synchronously
+
+            if (consultationFee <= 0) {
+                throw new IllegalArgumentException("Invalid consultation fee received from Doctor Service: " + consultationFee);
+            }
+
+            logger.info("Fetched consultation fee of {} for doctor ID: {}", consultationFee, appointment.getDoctorId());
+
+        } catch (WebClientResponseException e) {
+            // Re-throw as a specific exception that can be caught by controller advice
+            throw new RuntimeException("Failed to fetch doctor's consultation fee: " + e.getMessage(), e);
+        } catch (Exception e) {
+            // Catch other potential errors during WebClient call
+            throw new RuntimeException("Error communicating with Doctor Service to get fee: " + e.getMessage(), e);
+        }
+
+        // Update appointment status to COMPLETED
+        appointment.setStatus(AppointmentStatus.COMPLETED);
+        Appointment completedAppointment = appointmentRepository.save(appointment);
+
+        try {
+            String topicName = "appointment-completed-events"; // This topic name must match in Billing Service
+
+            // Build the Protobuf event
+            AppointmentCompletedEvent event = AppointmentCompletedEvent.newBuilder()
+                    .setAppointmentId(completedAppointment.getId().toString())
+                    .setPatientId(completedAppointment.getPatientId().toString())
+                    .setDoctorId(completedAppointment.getDoctorId().toString())
+                    .setCompletionDateTime(LocalDateTime.now().toString()) // Use current time of completion
+                    .setBaseFeeAmount(consultationFee) // Placeholder: This should be dynamic!
+                    .setCurrency("INR")     // Placeholder: This should be dynamic!
+                    .build();
+
+            // Send the Protobuf event as byte array
+            kafkaTemplate.send(topicName, completedAppointment.getId().toString(), event.toByteArray());
+            logger.info("Published Protobuf AppointmentCompletedEvent for appointmentId: {}", completedAppointment.getId());
+
+        } catch (Exception e) {
+            logger.error("Failed to publish Protobuf AppointmentCompletedEvent for appointmentId {}: {}", appointmentId, e.getMessage(), e);
+        }
+
+        return AppointmentMapper.toDTO(completedAppointment);
     }
 
     @Transactional(readOnly = true)
@@ -320,7 +407,7 @@ public class AppointmentService {
             throw new SecurityException("Unauthorized access: Cannot retrieve appointments without patient or doctor identity in token.");
         }
         return appointments.stream()
-                .filter(a -> a.getStatus() != AppointmentStatus.CANCELED && a.getStatus() != AppointmentStatus.FAILED) // Filter out canceled/failed for general listing
+                .filter(a -> a.getStatus() != AppointmentStatus.CANCELED && a.getStatus() != AppointmentStatus.FAILED)
                 .map(AppointmentMapper::toDTO)
                 .collect(Collectors.toList());
     }

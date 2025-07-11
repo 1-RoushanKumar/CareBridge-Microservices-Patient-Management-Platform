@@ -287,4 +287,11 @@ public class DoctorService {
                 .map(DoctorSlotMapper::toDTO)
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public double getDoctorConsultationFee(UUID doctorId) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with ID: " + doctorId));
+        return doctor.getConsultationFee();
+    }
 }
