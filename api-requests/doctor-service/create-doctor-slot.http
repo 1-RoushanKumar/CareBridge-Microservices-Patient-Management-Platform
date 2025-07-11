@@ -5,8 +5,8 @@ Content-Type: application/json
 
 {
   "doctorId": "1851c36c-c85d-445d-8497-a97619f7e9e9",
-  "startTime": "2025-07-17T10:00:00",
-  "endTime": "2025-07-19T14:30:00"
+  "startTime": "2025-07-19T10:00:00",
+  "endTime": "2025-07-20T14:30:00"
 }
 
 ###
