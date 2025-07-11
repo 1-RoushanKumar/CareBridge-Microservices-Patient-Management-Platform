@@ -1,5 +1,5 @@
 ### GET request to example server
-GET http://localhost:4004/api/doctors/a241c349-837b-464d-a6b0-5bcd2eda63cc
+GET http://localhost:4004/api/doctors/7ba202c5-24f4-451d-83d0-d331eef5f306
 Authorization: Bearer {{token}}
 
 ###

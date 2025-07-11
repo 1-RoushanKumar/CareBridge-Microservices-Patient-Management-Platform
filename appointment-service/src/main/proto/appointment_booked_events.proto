@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package appointment.events; // Keep in the same package as other appointment events
+
+option java_multiple_files = true;
+
+message AppointmentBookedEvent {
+  string appointmentId = 1;
+  string patientId = 2;
+  string doctorId = 3;
+  string appointmentDateTime = 4; // ISO 8601 string from LocalDateTime
+  string status = 5;             // E.g., "SCHEDULED", "PENDING"
+  string patientName = 6;
+  string patientEmail = 7;
+  string doctorName = 8;
+  string doctorSpecialization = 9;
+  double estimatedFeeAmount = 10; // Estimated fee, might not be final bill
+  string currency = 11;
+  string eventType = 12;         // E.g., "APPOINTMENT_SCHEDULED", "APPOINTMENT_RESCHEDULED"
+  string timestamp = 13;
+}

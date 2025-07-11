@@ -1,5 +1,6 @@
 package com.roushan.appointmentservice.service;
 
+import appointment.events.AppointmentBookedEvent;
 import com.roushan.appointmentservice.dtos.AppointmentRequestDTO;
 import com.roushan.appointmentservice.dtos.AppointmentResponseDTO;
 import com.roushan.appointmentservice.exception.ResourceNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import appointment.events.AppointmentCompletedEvent;
+import com.roushan.appointmentservice.dtos.DoctorResponseDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,21 +33,21 @@ import java.util.function.Function;
 @Service
 public class AppointmentService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AppointmentService.class); // NEW: Logger
+    private static final Logger logger = LoggerFactory.getLogger(AppointmentService.class);
 
     private final AppointmentRepository appointmentRepository;
     private final PatientDetailsRepository patientDetailsRepository;
     private final WebClient doctorServiceWebClient;
-    private final KafkaTemplate<String, byte[]> kafkaTemplate; // NEW: KafkaTemplate
+    private final KafkaTemplate<String, byte[]> kafkaTemplate;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               PatientDetailsRepository patientDetailsRepository,
                               WebClient doctorServiceWebClient,
-                              KafkaTemplate<String, byte[]> kafkaTemplate) { // NEW: Inject KafkaTemplate
+                              KafkaTemplate<String, byte[]> kafkaTemplate) {
         this.appointmentRepository = appointmentRepository;
         this.patientDetailsRepository = patientDetailsRepository;
         this.doctorServiceWebClient = doctorServiceWebClient;
-        this.kafkaTemplate = kafkaTemplate; // NEW: Assign KafkaTemplate
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Transactional
@@ -71,7 +73,7 @@ public class AppointmentService {
         PatientDetails patient = patientDetailsRepository.findById(patientIdToBook)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient with ID '" + patientIdToBook + "' not found in local records. Appointment cannot be booked."));
 
-        if (!"ACTIVE" .equalsIgnoreCase(patient.getStatus())) {
+        if (!"ACTIVE".equalsIgnoreCase(patient.getStatus())) {
             throw new IllegalArgumentException("Patient with ID '" + patientIdToBook + "' is currently '" + patient.getStatus() + "'. Only ACTIVE patients can book appointments.");
         }
 
@@ -91,6 +93,43 @@ public class AppointmentService {
             throw new IllegalArgumentException("Doctor slot ID must be provided to book an appointment.");
         }
         UUID doctorSlotId = UUID.fromString(requestDTO.getDoctorSlotId());
+
+        // --- NEW/UPDATED: Fetch Doctor Details for the event payload and booking logic ---
+        DoctorResponseDTO doctorDetails;
+        try {
+            // Using the actual Doctor Service endpoint: /doctors/{id}
+            doctorDetails = doctorServiceWebClient.get()
+                    .uri("/doctors/{id}", doctorId)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, response -> {
+                        if (response.statusCode() == HttpStatus.NOT_FOUND) {
+                            return Mono.error(new ResourceNotFoundException("Doctor not found for ID: " + doctorId));
+                        }
+                        return response.bodyToMono(String.class)
+                                .flatMap(errorBody -> Mono.error(new RuntimeException("Doctor Service error getting doctor " + doctorId + ": " + errorBody)));
+                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, response ->
+                            Mono.error(new RuntimeException("Doctor Service internal error getting doctor " + doctorId))
+                    )
+                    .bodyToMono(DoctorResponseDTO.class) // Expecting DoctorResponseDTO
+                    .block(); // Block to get the result synchronously
+
+            if (doctorDetails == null) { // Should ideally be caught by 404, but as a safeguard
+                throw new ResourceNotFoundException("Doctor details could not be fetched for ID: " + doctorId);
+            }
+            // Add a check for doctor status if not already done in Doctor Service's endpoint logic
+            // E.g., if ("INACTIVE".equalsIgnoreCase(doctorDetails.getStatus().name())) { ... }
+
+        } catch (WebClientResponseException e) {
+            // Log the actual response body if available for better debugging
+            logger.error("Failed to fetch doctor details for booking. Doctor ID: {}. Status: {}. Response: {}",
+                    doctorId, e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Failed to fetch doctor details for booking: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            logger.error("Error communicating with Doctor Service to get doctor details for ID {}: {}", doctorId, e.getMessage(), e);
+            throw new RuntimeException("Error communicating with Doctor Service to get doctor details: " + e.getMessage(), e);
+        }
+        // --- END Doctor Details Fetch ---
 
         Appointment appointment = new Appointment();
         appointment.setPatientId(patientIdToBook);
@@ -135,6 +174,38 @@ public class AppointmentService {
         }
 
         Appointment finalSavedAppointment = appointmentRepository.save(savedInitialAppointment);
+
+// --- NEW: Publish AppointmentBookedEvent to Kafka ---
+        try {
+            String topicName = "appointment-booked-events"; // This topic name should match in Notification Service
+
+            AppointmentBookedEvent event = AppointmentBookedEvent.newBuilder()
+                    .setAppointmentId(finalSavedAppointment.getId().toString())
+                    .setPatientId(finalSavedAppointment.getPatientId().toString())
+                    .setDoctorId(finalSavedAppointment.getDoctorId().toString())
+                    .setAppointmentDateTime(finalSavedAppointment.getAppointmentDateTime().toString())
+                    .setStatus(finalSavedAppointment.getStatus().name())
+                    .setPatientName(patient.getName()) // Assuming PatientDetails has a getName() method
+                    .setPatientEmail(patient.getEmail()) // Assuming PatientDetails has an getEmail() method
+                    .setDoctorName(doctorDetails.getFirstName() + " " + doctorDetails.getLastName()) // Using fetched doctorDetails
+                    .setDoctorSpecialization(doctorDetails.getSpecialization()) // Using fetched doctorDetails
+                    .setEstimatedFeeAmount(doctorDetails.getConsultationFee()) // Using fetched doctorDetails
+                    .setCurrency("INR") // Hardcoded for now; consider making this dynamic if needed
+                    .setEventType("APPOINTMENT_SCHEDULED") // Specific event type
+                    .setTimestamp(LocalDateTime.now().toString())
+                    .build();
+
+            // Send the Protobuf event as byte array
+            kafkaTemplate.send(topicName, finalSavedAppointment.getPatientId().toString(), event.toByteArray());
+            logger.info("Published Protobuf AppointmentBookedEvent for appointmentId: {}", finalSavedAppointment.getId());
+
+        } catch (Exception e) {
+            logger.error("Failed to publish Protobuf AppointmentBookedEvent for appointmentId {}: {}", finalSavedAppointment.getId(), e.getMessage(), e);
+            // Decide if this failure should cause a transaction rollback.
+            // For notifications, usually it's fine to log the error and continue,
+            // as the core appointment booking is complete.
+        }
+
         return AppointmentMapper.toDTO(finalSavedAppointment);
     }
 
@@ -291,28 +362,23 @@ public class AppointmentService {
         return AppointmentMapper.toDTO(updatedAppointment);
     }
 
-    // --- NEW METHOD: COMPLETE APPOINTMENT ---
     @Transactional
     public AppointmentResponseDTO completeAppointment(UUID appointmentId, UUID requestingUserId, boolean isAdmin) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
 
-        // Authorization: Only Admin or the Doctor associated with the appointment can mark it complete
         if (!isAdmin && (requestingUserId == null || !appointment.getDoctorId().equals(requestingUserId))) {
             throw new SecurityException("You are not authorized to mark this appointment as complete. Only the associated doctor or an ADMIN can do so.");
         }
 
-        // Validate current status
         if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
             throw new IllegalArgumentException("Appointment with ID '" + appointmentId + "' is already completed.");
         }
         if (appointment.getStatus() == AppointmentStatus.CANCELED || appointment.getStatus() == AppointmentStatus.FAILED) {
             throw new IllegalArgumentException("Cannot complete a " + appointment.getStatus().name().toLowerCase() + " appointment.");
         }
-        // Optionally: Prevent completing future appointments
-        if (appointment.getAppointmentDateTime().isAfter(LocalDateTime.now().plusHours(1))) { // Allow slight future for immediate completion scenarios
+        if (appointment.getAppointmentDateTime().isAfter(LocalDateTime.now().plusHours(1))) {
             logger.warn("Attempt to complete future appointment: {}", appointmentId);
-            // throw new IllegalArgumentException("Cannot complete an appointment scheduled for the future.");
         }
 
         double consultationFee;
@@ -321,7 +387,6 @@ public class AppointmentService {
                     .uri("/doctors/{doctorId}/fee", appointment.getDoctorId())
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, response -> {
-                        // Handle 404 specifically if doctor not found or fee not configured
                         if (response.statusCode() == HttpStatus.NOT_FOUND) {
                             return Mono.error(new ResourceNotFoundException("Doctor not found or consultation fee not configured for ID: " + appointment.getDoctorId()));
                         }
@@ -331,8 +396,8 @@ public class AppointmentService {
                     .onStatus(HttpStatusCode::is5xxServerError, response ->
                             Mono.error(new RuntimeException("Doctor Service internal error getting fee for doctor " + appointment.getDoctorId()))
                     )
-                    .bodyToMono(Double.class) // Expecting a Double response
-                    .block(); // Block to get the result synchronously
+                    .bodyToMono(Double.class)
+                    .block();
 
             if (consultationFee <= 0) {
                 throw new IllegalArgumentException("Invalid consultation fee received from Doctor Service: " + consultationFee);
@@ -341,31 +406,26 @@ public class AppointmentService {
             logger.info("Fetched consultation fee of {} for doctor ID: {}", consultationFee, appointment.getDoctorId());
 
         } catch (WebClientResponseException e) {
-            // Re-throw as a specific exception that can be caught by controller advice
             throw new RuntimeException("Failed to fetch doctor's consultation fee: " + e.getMessage(), e);
         } catch (Exception e) {
-            // Catch other potential errors during WebClient call
             throw new RuntimeException("Error communicating with Doctor Service to get fee: " + e.getMessage(), e);
         }
 
-        // Update appointment status to COMPLETED
         appointment.setStatus(AppointmentStatus.COMPLETED);
         Appointment completedAppointment = appointmentRepository.save(appointment);
 
         try {
-            String topicName = "appointment-completed-events"; // This topic name must match in Billing Service
+            String topicName = "appointment-completed-events";
 
-            // Build the Protobuf event
             AppointmentCompletedEvent event = AppointmentCompletedEvent.newBuilder()
                     .setAppointmentId(completedAppointment.getId().toString())
                     .setPatientId(completedAppointment.getPatientId().toString())
                     .setDoctorId(completedAppointment.getDoctorId().toString())
-                    .setCompletionDateTime(LocalDateTime.now().toString()) // Use current time of completion
-                    .setBaseFeeAmount(consultationFee) // Placeholder: This should be dynamic!
-                    .setCurrency("INR")     // Placeholder: This should be dynamic!
+                    .setCompletionDateTime(LocalDateTime.now().toString())
+                    .setBaseFeeAmount(consultationFee)
+                    .setCurrency("INR")
                     .build();
 
-            // Send the Protobuf event as byte array
             kafkaTemplate.send(topicName, completedAppointment.getId().toString(), event.toByteArray());
             logger.info("Published Protobuf AppointmentCompletedEvent for appointmentId: {}", completedAppointment.getId());
 

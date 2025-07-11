@@ -40,7 +40,6 @@ public class DoctorController {
 
     @Operation(summary = "Get doctor details by ID (Admin, Doctor, Patient)")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_DOCTOR', 'ROLE_PATIENT')")
     public ResponseEntity<DoctorResponseDTO> getDoctorById(@PathVariable UUID id) {
         DoctorResponseDTO responseDTO = doctorService.getDoctorById(id);
         return ResponseEntity.ok(responseDTO);
