@@ -4,9 +4,12 @@ package com.pm.billingservice.service;
 import billing.events.PaymentReceivedEvent;
 import com.pm.billingservice.kafka.BillingEventProducer;
 import com.pm.billingservice.model.Bill;
+import com.pm.billingservice.model.BillingAccount;
 import com.pm.billingservice.model.PaymentTransaction;
 import com.pm.billingservice.repository.BillRepository;
+import com.pm.billingservice.repository.BillingAccountRepository;
 import com.pm.billingservice.repository.PaymentTransactionRepository;
+import notification.request.events.PaymentNotificationRequestEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,13 +26,15 @@ public class PaymentService {
     private final BillRepository billRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final BillingEventProducer billingEventProducer;
+    private final BillingAccountRepository billingAccountRepository; // NEW Injection
 
     public PaymentService(BillRepository billRepository,
                           PaymentTransactionRepository paymentTransactionRepository,
-                          BillingEventProducer billingEventProducer) {
+                          BillingEventProducer billingEventProducer, BillingAccountRepository billingAccountRepository) {
         this.billRepository = billRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.billingEventProducer = billingEventProducer;
+        this.billingAccountRepository = billingAccountRepository;
     }
 
     @Transactional
@@ -84,6 +89,21 @@ public class PaymentService {
                 .setTimestamp(LocalDateTime.now().toString())
                 .build();
         billingEventProducer.sendPaymentReceivedEvent(event);
+
+        // 4. NEW: Publish the specific event for the notification service
+        BillingAccount account = billingAccountRepository.findById(bill.getBillingAccountId())
+                .orElseThrow(() -> new RuntimeException("Critical: Billing account not found for bill: " + billId));
+
+        PaymentNotificationRequestEvent notificationRequest = PaymentNotificationRequestEvent.newBuilder()
+                .setPatientName(account.getName())
+                .setPatientEmail(account.getEmail())
+                .setBillId(billId.toString())
+                .setTransactionId(savedTransaction.getId().toString())
+                .setAmount(savedTransaction.getAmount())
+                .setCurrency(savedTransaction.getCurrency())
+                .setTimestamp(LocalDateTime.now().toString())
+                .build();
+        billingEventProducer.sendPaymentNotificationRequest(notificationRequest);
 
         return savedTransaction;
     }

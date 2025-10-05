@@ -5,6 +5,7 @@ import appointment.events.AppointmentCanceledEvent;
 import appointment.events.AppointmentRescheduledEvent;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pm.notificationservice.service.NotificationService;
+import notification.request.events.PaymentNotificationRequestEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -117,6 +118,31 @@ public class AppointmentBookedEventListener {
             log.error("Error handling AppointmentCanceledEvent for appointmentId {}: {}",
                     (messageBytes != null ? new String(messageBytes) : "N/A"),
                     e.getMessage(), e);
+        }
+    }
+
+    @KafkaListener(topics = "${kafka.topics.payment-notification-requests:payment-notification-requests}",
+            groupId = "notification-service-group")
+    public void handlePaymentNotificationRequest(byte[] messageBytes) {
+        try {
+            PaymentNotificationRequestEvent event = PaymentNotificationRequestEvent.parseFrom(messageBytes);
+            log.info("Received PaymentNotificationRequestEvent for transactionId: {}", event.getTransactionId());
+
+            notificationService.sendPaymentConfirmationNotification(
+                    event.getPatientName(),
+                    event.getPatientEmail(),
+                    event.getBillId(),
+                    event.getTransactionId(),
+                    event.getAmount(),
+                    event.getCurrency()
+            );
+
+            log.info("Payment notification process triggered for transactionId: {}", event.getTransactionId());
+
+        } catch (InvalidProtocolBufferException e) {
+            log.error("Failed to parse PaymentNotificationRequestEvent Protobuf message: {}", e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Error handling PaymentNotificationRequestEvent: {}", e.getMessage(), e);
         }
     }
 }

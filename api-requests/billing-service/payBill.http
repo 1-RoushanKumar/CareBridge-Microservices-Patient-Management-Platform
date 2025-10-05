@@ -1,8 +1,10 @@
 ### GET request to example server
-POST http://localhost:4001/billing/bills/aa586222-3155-48ec-97ce-9bc36dda463e/pay
+POST http://localhost:4001/billing/bills/a371f14c-0157-49b6-be33-863676e8047c/pay
 Content-Type: application/json
 
 {
   "paymentMethod": "UPI"
 }
 ###
+
+//here we need to add bill-id from bill table.

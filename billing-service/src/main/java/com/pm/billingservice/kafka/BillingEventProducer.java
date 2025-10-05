@@ -3,6 +3,7 @@ package com.pm.billingservice.kafka;
 import billing.events.BillingAccountEvent; // Import the new Protobuf DTO
 import billing.events.PaymentReceivedEvent;
 import com.google.protobuf.InvalidProtocolBufferException;
+import notification.request.events.PaymentNotificationRequestEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,10 @@ public class BillingEventProducer {
 
     @Value("${kafka.topics.payment-events:payment-events}") // NEW TOPIC for payment events
     private String paymentEventsTopic;
+
+    // NEW: Topic for sending notification requests
+    @Value("${kafka.topics.payment-notification-requests:payment-notification-requests}")
+    private String paymentNotificationRequestTopic;
 
     public BillingEventProducer(KafkaTemplate<String, byte[]> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
@@ -46,6 +51,17 @@ public class BillingEventProducer {
                     paymentEventsTopic, event.getTransactionId(), event.getEventType());
         } catch (Exception e) {
             log.error("Error sending PaymentReceivedEvent for transaction {}: {}", event.getTransactionId(), e.getMessage(), e);
+        }
+    }
+
+    // NEW METHOD: Send a specific event for notifications
+    public void sendPaymentNotificationRequest(PaymentNotificationRequestEvent event) {
+        try {
+            kafkaTemplate.send(paymentNotificationRequestTopic, event.getBillId(), event.toByteArray());
+            log.info("Produced payment notification request to topic '{}' for transaction {}",
+                    paymentNotificationRequestTopic, event.getTransactionId());
+        } catch (Exception e) {
+            log.error("Error sending PaymentNotificationRequestEvent for transaction {}: {}", event.getTransactionId(), e.getMessage(), e);
         }
     }
 }

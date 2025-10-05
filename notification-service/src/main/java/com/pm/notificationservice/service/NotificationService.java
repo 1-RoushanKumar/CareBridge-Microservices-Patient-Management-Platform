@@ -127,6 +127,36 @@ public class NotificationService {
         sendEmail(patientEmail, subject, notificationMessage);
     }
 
+    // NEW METHOD FOR PAYMENT CONFIRMATION
+    public void sendPaymentConfirmationNotification(
+            String patientName, String patientEmail,
+            String billId, String transactionId,
+            double amount, String currency) {
+
+        String subject = "Payment Confirmation - Your payment was successful!";
+
+        String notificationMessage = String.format(
+                "Dear %s,\n\n" +
+                "This email confirms that we have successfully received your payment.\n\n" +
+                "**Payment Details:**\n" +
+                "- Amount Paid: %.2f %s\n" +
+                "- For Bill ID: %s\n" +
+                "- Transaction ID: %s\n\n" +
+                "Thank you for your business.\n\n" +
+                "Regards,\n" +
+                "Patient Management Team",
+                patientName, amount, currency, billId, transactionId
+        );
+
+        log.info("--- Preparing Payment Confirmation Notification ---");
+        log.info("To: {} ({})", patientName, patientEmail);
+        log.info("Subject: {}", subject);
+        log.info("Body:\n{}", notificationMessage);
+        log.info("-----------------------------------------------------");
+
+        sendEmail(patientEmail, subject, notificationMessage);
+    }
+
     // Helper method to consolidate email sending logic
     private void sendEmail(String recipientEmail, String subject, String content) {
         try {
@@ -147,3 +177,5 @@ public class NotificationService {
         }
     }
 }
+
+//http://localhost:8025/#

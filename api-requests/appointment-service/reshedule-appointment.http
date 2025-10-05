@@ -1,13 +1,13 @@
 ### PUT request to example server
-PUT http://localhost:4004/api/appointments/d8480676-5922-49f4-8be0-9bad42b64662/reschedule
+PUT http://localhost:4004/api/appointments/25fdcc6a-1e00-4f50-9a18-e1002c880e93/reschedule
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "doctorId": "0cfc2951-1d3c-4778-8c2f-5b09d9a45d3c",
-  "appointmentDateTime": "2025-07-22T01:00",
+  "doctorId": "f6349d10-683a-4653-acca-53b24b9a50e6",
+  "appointmentDateTime": "2025-11-06T11:00",
   "reason": "Reschedule due to conflict",
-  "doctorSlotId": "10d03abe-11d4-45fd-88f0-91f62a5d5e87"
+  "doctorSlotId": "d9d85066-1364-42cb-aaa4-bcc59f9d950f"
 }
 
 ###

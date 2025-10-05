@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package notification.request.events;
+
+option java_multiple_files = true;
+
+// This event is specifically for triggering a payment confirmation email.
+message PaymentNotificationRequestEvent {
+  string patientName = 1;
+  string patientEmail = 2;
+  string billId = 3;
+  string transactionId = 4;
+  double amount = 5;
+  string currency = 6;
+  string timestamp = 7;
+}

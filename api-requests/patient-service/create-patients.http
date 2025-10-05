@@ -4,13 +4,13 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "name": "Roushan Jaiswal",
-  "email": "rous04393@gmail.com",
-  "address": "Patna, Bihar",
-  "dateOfBirth": "1990-01-01",
-  "contact": "1143211329",
+  "name": "Sunil",
+  "email": "sunil04393@gmail.com",
+  "address": "Raipur",
+  "dateOfBirth": "1998-02-01",
+  "contact": "1143211312",
   "gender": "Male",
-  "emergencyContact": "9987954321"
+  "emergencyContact": "9997954321"
 }
 
 ###

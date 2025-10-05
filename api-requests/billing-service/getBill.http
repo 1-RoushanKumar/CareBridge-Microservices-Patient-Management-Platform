@@ -1,0 +1,5 @@
+### GET request to example server
+GET http://localhost:4001/billing/bills/a371f14c-0157-49b6-be33-863676e8047c
+Authorization: Bearer {{token}}
+
+###
