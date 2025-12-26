@@ -1,3 +1,3 @@
-GET http://localhost:4004/api/patients/30a01337-bf91-4773-95ef-7696cc9baedd
+GET http://localhost:4004/api/patients/dd09764b-ff73-459b-99e2-efcbcc8f852d
 Authorization: Bearer {{token}}
 Content-Type: application/json

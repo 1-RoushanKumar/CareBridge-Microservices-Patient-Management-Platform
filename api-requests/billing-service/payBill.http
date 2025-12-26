@@ -1,5 +1,5 @@
 ### GET request to example server
-POST http://localhost:4001/billing/bills/8250b03f-faeb-48dc-bd54-bd41590b62d5/pay
+POST http://localhost:4001/billing/bills/6049bc51-a4df-418a-bd21-676d1b4b45cd/pay
 Content-Type: application/json
 
 {

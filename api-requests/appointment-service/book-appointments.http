@@ -4,10 +4,10 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "patientId": "859b9cec-9600-468c-9309-b8b52b698eed",
-  "doctorId": "f1af953c-6bd6-429f-9795-679a68d3d472",
-  "appointmentDateTime": "2025-11-06T10:30",
+  "patientId": "dd09764b-ff73-459b-99e2-efcbcc8f852d",
+  "doctorId": "832bb548-0986-4fb1-b0dc-1376dddaa94d",
+  "appointmentDateTime": "2025-12-27T10:30",
   "status": "Booked by admin",
-  "doctorSlotId": "7bbb9c0d-3f5c-46b5-b2d7-9a9a7b10888f"
+  "doctorSlotId": "f5f03be4-6905-4bb9-91a8-28e62fe0ed24"
 }
 ###

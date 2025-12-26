@@ -1,3 +1,3 @@
 ### GET request to example server
-GET http://localhost:4000/patients/by-email?email=sunil04393@gmail.com
+GET http://localhost:4000/patients/by-email?email=rohankr@gmail.com
 ###

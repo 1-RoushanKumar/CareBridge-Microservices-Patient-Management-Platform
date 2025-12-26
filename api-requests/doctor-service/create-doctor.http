@@ -4,16 +4,16 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "firstName": "Saurav",
+  "firstName": "Rohan",
   "lastName": "Kumar",
-  "specialization": "Dermo",
-  "email": "saurav@g.com",
-  "phoneNumber": "129-456-7880",
-  "licenseNumber": "MD13301",
-  "experienceYears": 3,
-  "clinicAddress": "Patna, Bihar",
+  "specialization": "Neurologist",
+  "email": "rohan@g.com",
+  "phoneNumber": "125-456-7880",
+  "licenseNumber": "MD23301",
+  "experienceYears": 5,
+  "clinicAddress": "Ara, Bihar",
   "status": "ACTIVE",
-  "consultationFee": 1400
+  "consultationFee": 6000
 }
 
 ###

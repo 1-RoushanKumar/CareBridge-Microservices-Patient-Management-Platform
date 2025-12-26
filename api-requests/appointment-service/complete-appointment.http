@@ -1,5 +1,5 @@
 ### PUT request to example server
-PUT http://localhost:4004/api/appointments/b5d21f12-5106-4696-ac74-789868e1aabd/complete
+PUT http://localhost:4004/api/appointments/fc9f39d8-4296-4d88-bed8-ac12a66f8641/complete
 Authorization: Bearer {{token}}
 
 ###

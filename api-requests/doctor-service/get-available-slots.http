@@ -1,7 +1,7 @@
 ### GET request to example server
-GET http://localhost:4004/api/doctors/slots/available?doctorId=f6349d10-683a-4653-acca-53b24b9a50e6&date=2025-11-06
+#GET http://localhost:4004/api/doctors/slots/available?doctorId=832bb548-0986-4fb1-b0dc-1376dddaa94d&date=2025-12-27
 
-#GET http://localhost:8081/doctors/slots/available?specialization=Cardiology&date=2025-07-11
+GET http://localhost:8081/doctors/slots/available?specialization=Neurologist&date=2025-12-28
 
 
 ###

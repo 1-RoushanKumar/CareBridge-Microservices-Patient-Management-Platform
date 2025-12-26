@@ -4,13 +4,13 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "name": "mail",
-  "email": "mail04393@gmail.com",
+  "name": "rohankr",
+  "email": "rohankr@gmail.com",
   "address": "Raipur",
-  "dateOfBirth": "1998-02-01",
-  "contact": "1141211312",
+  "dateOfBirth": "1999-02-01",
+  "contact": "1141214312",
   "gender": "Male",
-  "emergencyContact": "9397954321"
+  "emergencyContact": "9398954321"
 }
 
 ###
