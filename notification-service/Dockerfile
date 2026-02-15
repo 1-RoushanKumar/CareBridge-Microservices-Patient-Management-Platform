@@ -17,7 +17,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Use the OpenJDK 21 image for the runtime stage
-FROM openjdk:21-jdk AS runner
+FROM eclipse-temurin:21-jdk
 
 # Set the working directory inside the container
 WORKDIR /app
